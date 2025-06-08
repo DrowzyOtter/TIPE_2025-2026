@@ -1,6 +1,5 @@
 from math import *
 import tkinter as tki
-import numpy as np
 
 n = 500
 m = 500
@@ -16,6 +15,18 @@ def peint_foret_rectangle (x1,x2,y1,y2,is_foret) :
 
 
 # def peint_foret_polygone (,is_foret) :
+
+#fenetre
+fenetre = tki.Tk()
+fenetre.title("visualisation")
+fenetre.geometry("1080x720")
+fenetre.minsize(480,360)
+fenetre.config(background="#f1ede4") #e8e2d6 #ece8d2
+
+
+#affichage
+fenetre.mainloop()
+
 
 """def Affiche_Nul(n):
     B=np.zeros((n,n))
