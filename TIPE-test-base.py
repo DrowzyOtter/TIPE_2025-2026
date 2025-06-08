@@ -17,7 +17,7 @@ def peint_foret_rectangle (x1,x2,y1,y2,is_foret) :
 
 # def peint_foret_polygone (,is_foret) :
 
-def Affiche_Nul(n):
+"""def Affiche_Nul(n):
     B=np.zeros((n,n))
     fenetre = tki.Tk()
     Text=str(B)
@@ -32,4 +32,5 @@ def Affiche_Matrice(A):
     l = tki.LabelFrame(fenetre, text="Notre matrice", padx=20, pady=20, width=600)
     l.pack(fill="both", expand="yes")
     tki.Label(l, text=Text).pack()
-    fenetre.mainloop()
+    fenetre.mainloop()"""
+
