@@ -1,8 +1,8 @@
 from math import *
 import tkinter as tki
 
-n = 50
-m = 70
+n = 200
+m = 1000
 
 esp = [[False]*m for _ in range (n)]
 
@@ -28,7 +28,7 @@ def test_forme_foret_2 () :
 # Paramètres d'affichage de la grille
 ligne = n
 colonne = m
-taille_cellule = 10  # taille des cases en pixels
+taille_cellule = 7  # taille des cases en pixels
 
 #fenetre
 fenetre = tki.Tk()
@@ -38,7 +38,7 @@ fenetre.minsize(480,360)
 fenetre.config(background="#f1ede4") #e8e2d6 #ece8d2
 
 canvas = tki.Canvas(fenetre, width=colonne*taille_cellule, height=ligne*taille_cellule,highlightthickness=0,insertbackground="#f1ede4")
-canvas.pack(ipadx=1,ipady=1) 
+canvas.pack(ipadx=1,ipady=1)
 
 # Dessin de la grille
 color_map = {
@@ -52,10 +52,10 @@ def maj_affichage () :
             y1 = i * taille_cellule
             x2 = x1 + taille_cellule
             y2 = y1 + taille_cellule
-            canvas.create_rectangle(x1, y1, x2, y2, fill=color_map[(esp[i][j])],outline="") 
+            canvas.create_rectangle(x1, y1, x2, y2, fill=color_map[(esp[i][j])])#,outline="") 
 
 #affichage
 maj_affichage ()
-test_forme_foret_2 ()
+test_forme_foret_1 ()
 maj_affichage ()
 fenetre.mainloop()
