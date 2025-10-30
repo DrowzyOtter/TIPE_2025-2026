@@ -1,17 +1,34 @@
-from random import random
+from random import random,gauss
 from math import sin,sqrt
 
-nb_individu = 10 # il serait peut-être interessant de faire varier cette valeur au cours de l'algorithme : phase de recherche = + d'indiv
+nb_individu = 20 # il serait peut-être interessant de faire varier cette valeur au cours de l'algorithme : phase de recherche = + d'indiv
 génération = 0
 population = [] # un tableau semble le mieux (mais à voir)
+abscisse_minimale = -10
+abscisse_maximale = 20
+ordonnée_minimale = -15
+ordonnée_maximale = 15
+
+def distrib_uniforme (inf,sup) :
+    return (sup-inf)*random() + inf
+def distrib_gaussienne_centrée_tronquée (inf,sup,k) : #sur l'intervalle [mu - k*sigma ; mu + k*sigma]
+    mu = (inf + sup)/2
+    sigma = (sup - inf)/(2*k)
+    X = gauss(mu,sigma)
+    while abs(X-mu) > k*sigma : #pas optimal surtout si k petit
+        X = gauss(mu,sigma)
+    return X
+
+def distrib_gaussienne_tronquée (inf,sup,mu,sigma_relatif) : # un calcul d'intégrale permetterait d'avoir un équivalent du k
+    sigma = sigma_relatif * (sup - inf) #chercher la justification de cette dépendance linéaire
+    X = gauss(mu,sigma)
+    while X < inf or X > sup :
+        X = gauss(mu,sigma)
+    return X
 
 ###création de la population de départ
-
-def distrib_aléa (inf,sup) :
-    return (sup-inf)*random() + inf
-
 for _ in range (nb_individu) :
-    population.append((distrib_aléa(-10,20),distrib_aléa(-15,15)))
+    population.append((distrib_uniforme(abscisse_minimale,abscisse_maximale),distrib_uniforme(ordonnée_minimale,ordonnée_maximale)))
 
 ###fitness fonction
 def sinuscardinal (x,y,x0,y0):
@@ -19,10 +36,9 @@ def sinuscardinal (x,y,x0,y0):
 
 def fitness(indiv : tuple):
     x,y = indiv
-    return -5*sinuscardinal(x,y,0,0) - 4*sinuscardinal(x,y,10,0)
+    return -5*sinuscardinal(x,y,0,0) - 4.998*sinuscardinal(x,y,10,0)
 
-###évaluation (tri)
-
+###évaluation : méthode 1 : tri de couple
 """indice_associé = {}
 coûts = []
 for i in range(population) :
@@ -88,10 +104,26 @@ def ordre (coût_associé) :
         ordre.append(indice)
     return ordre
 
-print(population)
-print(evaluation_et_tri(population))
+def pop_et_coût_triés (population,coût_associé) :
+    pop_triée = []
+    coût_trié = []
+    for i in range (len(coût_associé)) :
+        coût,indice = coût_associé[i]
+        pop_triée.append(population[indice])
+        coût_trié.append(coût)
+    return pop_triée,coût_trié
 
-###visualisation
+"""print(population)
+print(evaluation_et_tri(population))"""
+
+###évaluation : méthode 1 bis : tri de couple avec sort
+
+###évaluation : méthode 2 : permutation de deux listes
+
+
+###-------------------------------###
+###         visualisation         ###
+###-------------------------------###
 
 from tkinter import *
 # Création de la fenêtre principale
@@ -148,10 +180,72 @@ def nv_point (x,y,tx):
 
 #moncanva.create_oval(100,100,200,200,fill="red")
 
-#for i in range (len(population)) :
+def afficher (pop_triée,coût_trié) :
+    maximum = max(coût_trié)
+    minimum = min(coût_trié)
+    for i in range (len(pop_triée)) :
+        x,y = pop_triée[i]
+        tx = 1-((coût_trié[i]-minimum) / (maximum-minimum))
+        nv_point(x,y,tx)
+def execution() :
+    pop_triée,coût_trié = pop_et_coût_triés(population,evaluation_et_tri(population))
+    afficher(pop_triée,coût_trié)
+    print(pop_triée)
+    for i in range(len(pop_triée)):
+        print (pop_triée[i],coût_trié[i])
+    return pop_triée,coût_trié
 
-nv_point(0,0,0.5)
-nv_point(3,-2,1)
+#pop_triée,coût_trié = execution()
+
+moncanva.pack()
+#fenêtre.mainloop()
+
+###séléction (nouvelle génération)
+
+répartition = [5,0,5,10] #pour l'instant en nombre d'individu
+#serait mieux en taux mais attention  à ce qu'il n'y est pas de perte
+#ex : int(33.33) = 33 ==> plus que 99 individus à la deuxième génération (donc dernière val pas ajouté à la liste : ce qui reste)
+
+def pioche_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'intervalle est [ minimum ; maximum [
+    intervalle = maximum - minimum
+    piochés = []
+    while len(piochés) < nb_a_pioché :
+        X = minimum + int(abs(distrib_gaussienne_centrée_tronquée (-intervalle,intervalle,2)))
+        if X not in piochés :
+            piochés.append(X)
+    return sorted(piochés) #ou utilisé sa propre fct de tri
+
+def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'intervalle est [ minimum ; maximum [
+    intervalle = maximum - minimum
+    piochés = []
+    while len(piochés) < nb_a_pioché :
+        X = minimum + int(abs(distrib_gaussienne_centrée_tronquée (-intervalle,intervalle,2)))
+        Y = minimum + int(abs(distrib_gaussienne_centrée_tronquée (-intervalle,intervalle,2)))
+        if (X,Y) not in piochés and (X != Y):
+            piochés.append((X,Y))
+    return sorted(piochés) #ou utilisé sa propre fct de tri
+
+def séléction (pop_triée,coût_trié) :
+    nv_population = pop_triée[:répartition[0]] #élitisme
+    for X in pioche_parmi_un_intervalle(répartition[0],len(pop_triée),répartition[1]): #réplication
+        nv_population.append(pop_triée(X))
+    #jusqu'ici nv_pop est triée et les fitness scores sont déjà connus
+    for (X,Y) in pioche_couple_parmi_un_intervalle(0,len(pop_triée),répartition[2]) : #croisement (on peut aussi changer pour (0,len(nv_population)))
+        nv_population.append((pop_triée[X][0],pop_triée[Y][1])) #prend l'abscisse du premier, l'ordonnée du second
+    for X in pioche_parmi_un_intervalle(0,len(pop_triée),répartition[3]): #mutation
+        x,y = pop_triée[X]
+        nv_x = distrib_gaussienne_tronquée (abscisse_minimale,abscisse_maximale,x,0.2) #sigma relatif est à changer au cours du temps
+        nv_y = distrib_gaussienne_tronquée (ordonnée_minimale,ordonnée_maximale,y,0.2)
+        nv_population.append((nv_x,nv_y))
+    return nv_population
+
+def évolution (nb_génération) :
+    for _ in range(nb_génération):
+        pop_triée,coût_trié = pop_et_coût_triés(population,evaluation_et_tri(population))
+        population = séléction (pop_triée,coût_trié)
+
+évolution(1000)
+pop_triée,coût_trié = execution()
 
 moncanva.pack()
 fenêtre.mainloop()
