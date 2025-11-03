@@ -1,5 +1,5 @@
 from random import random,gauss
-from math import sin,sqrt
+from math import sin,sqrt,log,exp
 
 nb_individu = 20 # il serait peut-être interessant de faire varier cette valeur au cours de l'algorithme : phase de recherche = + d'indiv
 génération = 0
@@ -36,7 +36,7 @@ def sinuscardinal (x,y,x0,y0):
 
 def fitness(indiv : tuple):
     x,y = indiv
-    return -5*sinuscardinal(x,y,0,0) - 4.998*sinuscardinal(x,y,10,0)
+    return -5*sinuscardinal(x,y,0,0) - 4.999*sinuscardinal(x,y,10,0)
 
 ###évaluation : méthode 1 : tri de couple
 """indice_associé = {}
@@ -225,7 +225,7 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
             piochés.append((X,Y))
     return sorted(piochés) #ou utilisé sa propre fct de tri
 
-def séléction (pop_triée,coût_trié) :
+def séléction (pop_triée,coût_trié,sigma_mutation) :
     nv_population = pop_triée[:répartition[0]] #élitisme
     for X in pioche_parmi_un_intervalle(répartition[0],len(pop_triée),répartition[1]): #réplication
         nv_population.append(pop_triée(X))
@@ -234,18 +234,43 @@ def séléction (pop_triée,coût_trié) :
         nv_population.append((pop_triée[X][0],pop_triée[Y][1])) #prend l'abscisse du premier, l'ordonnée du second
     for X in pioche_parmi_un_intervalle(0,len(pop_triée),répartition[3]): #mutation
         x,y = pop_triée[X]
-        nv_x = distrib_gaussienne_tronquée (abscisse_minimale,abscisse_maximale,x,0.2) #sigma relatif est à changer au cours du temps
-        nv_y = distrib_gaussienne_tronquée (ordonnée_minimale,ordonnée_maximale,y,0.2)
+        nv_x = distrib_gaussienne_tronquée (abscisse_minimale,abscisse_maximale,x,sigma_mutation) #sigma relatif est à changer au cours du temps
+        nv_y = distrib_gaussienne_tronquée (ordonnée_minimale,ordonnée_maximale,y,sigma_mutation)
         nv_population.append((nv_x,nv_y))
     return nv_population
 
-def évolution (nb_génération) :
-    for _ in range(nb_génération):
-        pop_triée,coût_trié = pop_et_coût_triés(population,evaluation_et_tri(population))
-        population = séléction (pop_triée,coût_trié)
+meilleur_score = []
+score_moyen = []
 
-évolution(1000)
+def fonction_sigma_mutation (génération,nb_génération) : #il serait encore mieux de faire en fct de la vitesse de convergence
+    #sigma = 0.5
+    #sigma = 0.1 #plutot bien
+    taux = génération/nb_génération
+    #sigma = exp(-3.5*taux) #de 1 à 0,03
+    sigma = exp(-5*taux) #de 1 à 0,006
+    return sigma
+
+
+def évolution (nb_génération) :
+    global population #sinon UnboundLocalError mais évolution et exection pourraient être mieux recodées
+    for génération in range(nb_génération):
+        pop_triée,coût_trié = pop_et_coût_triés(population,evaluation_et_tri(population))
+        meilleur_score.append(4.8+coût_trié[0])
+        score_moyen.append(4.8+sum(coût_trié)/len(pop_triée))
+        sigma_mutation = fonction_sigma_mutation(génération,nb_génération)
+        population = séléction (pop_triée,coût_trié,sigma_mutation)
+
+nb_génération = 1000
+
+évolution(nb_génération)
 pop_triée,coût_trié = execution()
+
+import matplotlib.pyplot as plt
+plt.plot(meilleur_score) #[i+1 for i in range(nb_génération)]
+plt.plot(score_moyen) #brouillon d'echelle log : [log(i+1) for i in range(500)]
+plt.xscale("log")
+plt.yscale("log")
+plt.show()
 
 moncanva.pack()
 fenêtre.mainloop()
