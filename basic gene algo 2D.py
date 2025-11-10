@@ -2,7 +2,7 @@ from random import random,gauss
 from math import sin,sqrt,log,exp
 
 nb_individu = 20 # il serait peut-être interessant de faire varier cette valeur au cours de l'algorithme : phase de recherche = + d'indiv
-génération = 0
+#génération = 0
 population = [] # un tableau semble le mieux (mais à voir)
 abscisse_minimale = -10
 abscisse_maximale = 20
@@ -27,8 +27,12 @@ def distrib_gaussienne_tronquée (inf,sup,mu,sigma_relatif) : # un calcul d'int�
     return X
 
 ###création de la population de départ
-for _ in range (nb_individu) :
-    population.append((distrib_uniforme(abscisse_minimale,abscisse_maximale),distrib_uniforme(ordonnée_minimale,ordonnée_maximale)))
+def création_pop () :
+    population = []
+    for _ in range (nb_individu) :
+        population.append((distrib_uniforme(abscisse_minimale,abscisse_maximale),distrib_uniforme(ordonnée_minimale,ordonnée_maximale)))
+    return population
+population = création_pop()
 
 ###fitness fonction
 def sinuscardinal (x,y,x0,y0):
@@ -260,7 +264,7 @@ def évolution (nb_génération) :
         sigma_mutation = fonction_sigma_mutation(génération,nb_génération)
         population = séléction (pop_triée,coût_trié,sigma_mutation)
 
-nb_génération = 1000
+nb_génération = 100000
 
 évolution(nb_génération)
 pop_triée,coût_trié = execution()
@@ -274,3 +278,7 @@ plt.show()
 
 moncanva.pack()
 fenêtre.mainloop()
+
+#une fonction interessante à implémenter serait l'execution multiple de l'algorithme (avec peu de génération) permetant de déterminer quelle 
+#liste "répartition" permet au mieux la convergence globale ou celle qui accélère le plus la convergence.
+
