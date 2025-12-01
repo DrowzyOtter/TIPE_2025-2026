@@ -44,12 +44,13 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 # endregion
 ###generateur à points équidistants par liste d'angles (modèle 1)
 """varables"""
-nb_individu = 20
-dx = 2
-nb_segment = 5
+nb_individu = 30
+dx = 4
+nb_segment = 6
+sigma_mutation = 0.01
 nb_génération = 100
 génération_actuelle = 0
-répartition = [5,0,5,10]
+répartition = [5,0,10,15]
 
 """variables de test"""
 Lex1 = [0,0,90,0,-90] #liste des angles successifs décrivant un individu
@@ -217,11 +218,11 @@ def séléction (pop_triée,coût_trié,sigma_mutation) :
 """print(appartenance_Zalgaller(Lforet,0,-97,-2.05,-2.42))
 print(sin(pi/2))"""
 
-population = création_pop(nb_individu,nb_segment)
+#population = création_pop(nb_individu,nb_segment)
 #print(population)
 #print([x for x,y in angles_a_forme(population[0],dx)])
-pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
-print(coût_trié)
+#pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
+#print(coût_trié)
 
 ###-------------------------------###
 ###         visualisation         ###
@@ -252,8 +253,8 @@ def gradient_color(t):
     return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
 
 # Création de la fenêtre principale
-hauteur = 400
-largeur = 600
+hauteur = 400*2
+largeur = 600*2
 fenêtre = Tk()
 fenêtre.title("évaluation du fitness score simplifiée")
 fenêtre.geometry("600x400")
@@ -321,8 +322,30 @@ def fitness_affichage (individu,dx,Lforet) :
         tx += 1/(nb_x0)
 
 
-fitness_affichage(pop_triée[0],dx,Lforet)
-print (moncanva.winfo_width())
+#fitness_affichage(pop_triée[0],dx,Lforet)
+#print (moncanva.winfo_width())
+
+def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation) :
+    meilleur_score , score_moyen = [] , []
+    population = création_pop(nb_individu,nb_segment)
+    for génération in range (nb_génération) :
+        pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
+        meilleur_score.append(coût_trié[0])
+        score_moyen.append(sum(coût_trié)/len(pop_triée))
+        population = séléction (pop_triée,coût_trié,sigma_mutation)
+    pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
+    fitness_affichage(pop_triée[0],dx,Lforet)
+    print(coût_trié[0])
+    return meilleur_score , score_moyen
+
+meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation)
+
+import matplotlib.pyplot as plt
+plt.plot(meilleur_score) #[i+1 for i in range(nb_génération)]
+plt.plot(score_moyen) #brouillon d'echelle log : [log(i+1) for i in range(500)]
+plt.xscale("log")
+plt.yscale("log")
+plt.show()
 
 moncanva.pack(expand=True)
 fenêtre.mainloop()
