@@ -45,9 +45,12 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 ###generateur à points équidistants par liste d'angles (modèle 1)
 """varables"""
 nb_individu = 30
-dx = 4
-nb_segment = 6
-sigma_mutation = 0.01
+
+#cas zalgaller : l0 = 2,78
+dx = 3.5 #longueur de chaque segment
+nb_segment = 8
+
+sigma_mutation = 0.01 #écart type relatif pour la mutation
 nb_génération = 100
 génération_actuelle = 0
 répartition = [5,0,10,15]
@@ -198,14 +201,14 @@ def couples_à_listes (couples) :
 def séléction (pop_triée,coût_trié,sigma_mutation) :
     nv_population = pop_triée[:répartition[0]] #élitisme
     for X in pioche_parmi_un_intervalle(répartition[0],len(pop_triée),répartition[1]): #réplication
-        nv_population.append(pop_triée(X))
+        nv_population.append(pop_triée[X])
     #jusqu'ici nv_pop est triée et les fitness scores sont déjà connus
     for (X,Y) in pioche_couple_parmi_un_intervalle(0,len(pop_triée),répartition[2]) : #croisement (on peut aussi changer pour (0,len(nv_population)))
         nv_population.append(pop_triée[X][:3] + pop_triée[X][3:])
     for X in pioche_parmi_un_intervalle(0,len(pop_triée),répartition[3]): #mutation
         indivdu = pop_triée[X]
-        for angle in indivdu :
-            angle = distrib_gaussienne_tronquée(-180,180,angle,sigma_mutation) #sigma relatif est à changer au cours du temps
+        for i in range(len(indivdu)) :
+            indivdu[i] = distrib_gaussienne_tronquée(-180,180,indivdu[i],sigma_mutation) #sigma relatif est à changer au cours du temps
         nv_population.append(indivdu)
     return nv_population
 
@@ -321,6 +324,28 @@ def fitness_affichage (individu,dx,Lforet) :
             afficher_individu (individu,dx,x0,orientation,tx)
         tx += 1/(nb_x0)
 
+def fitness_lourde (individu,dx) :
+    #nb_segment = len(individu)
+    nb_x0 = 100
+    nb_orientations = 60
+    xy_ind = angles_a_forme(individu,dx)
+    tx_moyen = 0
+    score = 1
+    x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
+    for x0 in x0_évalués :
+        for orientation in orientations_évaluées :
+            dedans = []
+            tx = 0
+            #for x,y in angles_a_forme(individu,dx) :
+            for (x,y) in xy_ind :
+                dedans.append(appartenance_Zalgaller(Lforet,x0,orientation,x,y))
+            for val in dedans :
+                tx += int(val)/len(dedans)
+            if tx < 1 :
+                score -= 1/(nb_x0 * nb_orientations)
+            tx_moyen += tx/(nb_x0 * nb_orientations)
+    return score*100, tx_moyen*100
+
 
 #fitness_affichage(pop_triée[0],dx,Lforet)
 #print (moncanva.winfo_width())
@@ -336,6 +361,7 @@ def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation) :
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
     fitness_affichage(pop_triée[0],dx,Lforet)
     print(coût_trié[0])
+    print(fitness_lourde (pop_triée[0],dx))
     return meilleur_score , score_moyen
 
 meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation)
