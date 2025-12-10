@@ -47,8 +47,8 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 nb_individu = 30
 
 #cas zalgaller : l0 = 2,78
-dx = 3.5 #longueur de chaque segment
-nb_segment = 8
+dx = 1 #longueur de chaque segment
+nb_segment = 28
 
 sigma_mutation = 0.01 #écart type relatif pour la mutation
 nb_génération = 100
@@ -130,8 +130,8 @@ def création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet) 
 
 def fitness (individu,dx) :
     #nb_segment = len(individu)
-    nb_x0 = 10
-    nb_orientations = 6
+    nb_x0 = 20
+    nb_orientations = 15
     xy_ind = angles_a_forme(individu,dx)
     score = nb_x0 * nb_orientations
     x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
@@ -182,6 +182,7 @@ def tri_fusion (couples) :
         c1,c2 = séparation (couples)
         return fusion (tri_fusion(c1),tri_fusion(c2))
 
+#-------------------------------------------#
 
 def évaluation_et_tri (population,dx):
     coût_associé = []
@@ -324,13 +325,15 @@ def fitness_affichage (individu,dx,Lforet) :
             afficher_individu (individu,dx,x0,orientation,tx)
         tx += 1/(nb_x0)
 
-def fitness_lourde (individu,dx) :
+def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste pour le test final
     #nb_segment = len(individu)
     nb_x0 = 100
     nb_orientations = 60
     xy_ind = angles_a_forme(individu,dx)
     tx_moyen = 0
     score = 1
+    nb_erreurs = nb_x0 * nb_orientations
+    nb_segments_inutiles_total = 0
     x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
     for x0 in x0_évalués :
         for orientation in orientations_évaluées :
@@ -339,12 +342,23 @@ def fitness_lourde (individu,dx) :
             #for x,y in angles_a_forme(individu,dx) :
             for (x,y) in xy_ind :
                 dedans.append(appartenance_Zalgaller(Lforet,x0,orientation,x,y))
-            for val in dedans :
+            for val in dedans : #useless
                 tx += int(val)/len(dedans)
-            if tx < 1 :
-                score -= 1/(nb_x0 * nb_orientations)
+            for i in range(len(dedans)) :
+                if dedans[i] == False :
+                    nb_segments_inutiles_total += len(dedans) - i #on compte les segments après la première sortie de la foret
+                    nb_erreurs -= 1
+                    break
+            #if tx < 1 :
+            #    score -= 1/(nb_x0 * nb_orientations)
+
             tx_moyen += tx/(nb_x0 * nb_orientations)
-    return score*100, tx_moyen*100
+    if (nb_x0 * nb_orientations - nb_erreurs) > 0 : #dénombre les segments inutiles moyens parmi les essais réussis
+        nb_segments_inutiles_moyen = nb_segments_inutiles_total / (nb_x0 * nb_orientations - nb_erreurs)
+    else :
+        nb_segments_inutiles_moyen = 0
+    score = nb_erreurs / (nb_x0 * nb_orientations)
+    return score*100, tx_moyen*100, nb_erreurs, nb_x0 * nb_orientations, nb_segments_inutiles_moyen
 
 
 #fitness_affichage(pop_triée[0],dx,Lforet)
@@ -370,7 +384,7 @@ import matplotlib.pyplot as plt
 plt.plot(meilleur_score) #[i+1 for i in range(nb_génération)]
 plt.plot(score_moyen) #brouillon d'echelle log : [log(i+1) for i in range(500)]
 plt.xscale("log")
-plt.yscale("log")
+#plt.yscale("log")
 plt.show()
 
 moncanva.pack(expand=True)
