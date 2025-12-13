@@ -47,8 +47,8 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 nb_individu = 30
 
 #cas zalgaller : l0 = 2,78
-dx = 1 #longueur de chaque segment
-nb_segment = 28
+dx = 5 #longueur de chaque segment
+nb_segment = 4
 
 sigma_mutation = 0.01 #écart type relatif pour la mutation
 nb_génération = 100
@@ -133,7 +133,7 @@ def fitness (individu,dx) :
     nb_x0 = 20
     nb_orientations = 15
     xy_ind = angles_a_forme(individu,dx)
-    score = nb_x0 * nb_orientations
+    score = nb_x0 * nb_orientations #part du pire score possible
     x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
     for x0 in x0_évalués :
         for orientation in orientations_évaluées :
@@ -141,7 +141,7 @@ def fitness (individu,dx) :
             #for x,y in angles_a_forme(individu,dx) :
             for (x,y) in xy_ind :
                 dedans.append(appartenance_Zalgaller(Lforet,x0,orientation,x,y))
-            if False in dedans :
+            if False in dedans : #si au moins un segment est hors de la foret
                 score -= 1
     return score
 
@@ -261,7 +261,7 @@ hauteur = 400*2
 largeur = 600*2
 fenêtre = Tk()
 fenêtre.title("évaluation du fitness score simplifiée")
-fenêtre.geometry("600x400")
+fenêtre.geometry("1126x900")
 fenêtre.configure(bg="#020618")
 #moncanva = Canvas(fenêtre)
 moncanva = Canvas(fenêtre,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
@@ -273,13 +273,13 @@ def convertisseur_affine_x (x) :
     #return (544-15)/(20+10)*(x+10) + 15
     #return x*largeur/(4*Lforet)
     largeur_canva = moncanva.winfo_width()
-    return largeur_canva// 2 + x / (Lforet * 2.5) * largeur_canva
+    return largeur_canva// 2 + x / (Lforet * 3.5) * largeur_canva
 def convertisseur_affine_y (y) :
     #return (65-595)/(15+15)*(y+15) + 595
     #return y*hauteur/(4*Lforet)
     hauteur_canva = moncanva.winfo_height()
     largeur_canva = moncanva.winfo_width()
-    return hauteur_canva // 2 + y / (Lforet * 2.5) * largeur_canva
+    return hauteur_canva // 2 + y / (Lforet * 3.5) * largeur_canva
 
 def nv_point (x,y,tx):
     R = 4
@@ -324,6 +324,8 @@ def fitness_affichage (individu,dx,Lforet) :
             #print(x0,orientation)
             afficher_individu (individu,dx,x0,orientation,tx)
         tx += 1/(nb_x0)
+
+
 
 def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste pour le test final
     #nb_segment = len(individu)
@@ -375,7 +377,8 @@ def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation) :
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
     fitness_affichage(pop_triée[0],dx,Lforet)
     print(coût_trié[0])
-    print(fitness_lourde (pop_triée[0],dx))
+    score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
+    print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
     return meilleur_score , score_moyen
 
 meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation)
