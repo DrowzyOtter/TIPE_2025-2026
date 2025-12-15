@@ -25,20 +25,28 @@ def distrib_gaussienne_tronquée (inf,sup,mu,sigma_relatif) : # un calcul d'int�
 def pioche_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'intervalle est [ minimum ; maximum [
     intervalle = maximum - minimum
     piochés = []
-    while len(piochés) < nb_a_pioché :
+    compteur = 0
+    while len(piochés) < nb_a_pioché and compteur < nb_a_pioché * 100 :
         X = minimum + int(abs(distrib_gaussienne_centrée_tronquée (-intervalle,intervalle,2)))
         if X not in piochés :
             piochés.append(X)
+        compteur += 1
+    if len(piochés) < nb_a_pioché :
+        raise Exception("Trop peu d'éléments uniques piochés, augmenter l'intervalle ou diminuer le nombre à piocher")
     return sorted(piochés) #ou utilisé sa propre fct de tri
 
 def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'intervalle est [ minimum ; maximum [
     intervalle = maximum - minimum
     piochés = []
-    while len(piochés) < nb_a_pioché :
+    compteur = 0
+    while len(piochés) < nb_a_pioché and compteur < nb_a_pioché * 100 :
         X = minimum + int(abs(distrib_gaussienne_centrée_tronquée (-intervalle,intervalle,2)))
         Y = minimum + int(abs(distrib_gaussienne_centrée_tronquée (-intervalle,intervalle,2)))
         if (X,Y) not in piochés and (X != Y):
             piochés.append((X,Y))
+        compteur += 1
+    if len(piochés) < nb_a_pioché :
+        raise Exception("Trop peu d'éléments uniques piochés, augmenter l'intervalle ou diminuer le nombre à piocher")
     return sorted(piochés) #ou utilisé sa propre fct de tri
 
 # endregion
@@ -46,14 +54,15 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 """varables"""
 nb_individu = 30
 
-#cas zalgaller : l0 = 2,78
-dx = 5 #longueur de chaque segment
-nb_segment = 4
+#cas zalgaller : l0 = 2,278
+nb_segment = 6
+#dx =  #longueur de chaque segment
+dx = (2.278 + 0.1)/nb_segment*10 #Lforet = 10
 
 sigma_mutation = 0.01 #écart type relatif pour la mutation
 nb_génération = 100
 génération_actuelle = 0
-répartition = [5,0,10,15]
+répartition = [5,0,10,25] #élitisme, réplication, croisement, mutation
 
 """variables de test"""
 Lex1 = [0,0,90,0,-90] #liste des angles successifs décrivant un individu
@@ -106,7 +115,8 @@ def vecteur_de_départ_Zalgaller (Lforet) :
     return (x0, orientation)
 
 def appartenance_Zalgaller (Lforet, x0, orientation, x, y) :
-    if orientation % 180 == 0 :
+    ε = 1e-10
+    if (sin(orientation) < ε) : # Pour éviter les approximations dues aux flottants
         return -Lforet/2 <= x <= Lforet/2
     else :
         orientation_radian = orientation * pi /180
@@ -125,13 +135,14 @@ def création_positions_évaluées_aléatoires (nb_positions_évaluées,Lforet) 
 
 def création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet) :
     x0_évalués = liste_équirépartie(-Lforet/2+0.5,Lforet/2-0.5,nb_x0)
-    orientations_évaluées = liste_équirépartie(-360 * (1 - 1/nb_orientations/2),360 * (1 - 1/nb_orientations/2),nb_orientations) #/!\ à fixer
+    #orientations_évaluées = liste_équirépartie(-360 * (1 - 1/nb_orientations/2),360 * (1 - 1/nb_orientations/2),nb_orientations) #/!\ à fixer
+    orientations_évaluées = [(2*pi*k/nb_orientations - pi)/pi*180 for k in range (nb_orientations)]
     return x0_évalués, orientations_évaluées
 
-def fitness (individu,dx) :
+def fitness (individu,dx,nb_x0) :
     #nb_segment = len(individu)
-    nb_x0 = 20
-    nb_orientations = 15
+    #nb_x0 = 20
+    nb_orientations = 2*nb_x0
     xy_ind = angles_a_forme(individu,dx)
     score = nb_x0 * nb_orientations #part du pire score possible
     x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
@@ -184,10 +195,10 @@ def tri_fusion (couples) :
 
 #-------------------------------------------#
 
-def évaluation_et_tri (population,dx):
+def évaluation_et_tri (population,dx,nb_x0) :
     coût_associé = []
     for individu in population :
-        coût_associé.append((fitness(individu,dx),individu))
+        coût_associé.append((fitness(individu,dx,nb_x0),individu))
     return tri_fusion(coût_associé)
 
 def couples_à_listes (couples) :
@@ -200,14 +211,15 @@ def couples_à_listes (couples) :
 
 
 def séléction (pop_triée,coût_trié,sigma_mutation) :
-    nv_population = pop_triée[:répartition[0]] #élitisme
+    nv_population = pop_triée[:répartition[0]][:] #élitisme
     for X in pioche_parmi_un_intervalle(répartition[0],len(pop_triée),répartition[1]): #réplication
         nv_population.append(pop_triée[X])
     #jusqu'ici nv_pop est triée et les fitness scores sont déjà connus
     for (X,Y) in pioche_couple_parmi_un_intervalle(0,len(pop_triée),répartition[2]) : #croisement (on peut aussi changer pour (0,len(nv_population)))
-        nv_population.append(pop_triée[X][:3] + pop_triée[X][3:])
+        demi = len(pop_triée[X]) // 2
+        nv_population.append(pop_triée[X][:demi] + pop_triée[Y][demi:])
     for X in pioche_parmi_un_intervalle(0,len(pop_triée),répartition[3]): #mutation
-        indivdu = pop_triée[X]
+        indivdu = pop_triée[X][:]
         for i in range(len(indivdu)) :
             indivdu[i] = distrib_gaussienne_tronquée(-180,180,indivdu[i],sigma_mutation) #sigma relatif est à changer au cours du temps
         nv_population.append(indivdu)
@@ -301,11 +313,11 @@ def nv_ligne (x0,y0,x1,y1,tx) :
 
 #moncanva.create_oval(100,100,200,200,fill="red")
 
-def afficher_individu (individu,dx,x0,orientation,tx) : #matrice de rotation cachée
+def afficher_individu (individu,dx,x0,inclinaison,tx) : #matrice de rotation cachée
     xy_ind = angles_a_forme(individu,dx)
     for i in range (len(xy_ind)) :
         x , y = xy_ind[i]
-        xy_ind[i] = x*cos(orientation) - y*sin(orientation) + x0 , x*sin(orientation) + y*cos(orientation)
+        xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180)
     for i in range (1,len(xy_ind)) :
         nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx)
     nv_point(x0,0,tx)
@@ -367,14 +379,24 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
 #print (moncanva.winfo_width())
 
 def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation) :
+    global dx
     meilleur_score , score_moyen = [] , []
+    nb_x0 = 20
     population = création_pop(nb_individu,nb_segment)
     for génération in range (nb_génération) :
-        pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
+        pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,nb_x0))
         meilleur_score.append(coût_trié[0])
         score_moyen.append(sum(coût_trié)/len(pop_triée))
         population = séléction (pop_triée,coût_trié,sigma_mutation)
-    pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
+        if coût_trié[0] <= 0 :
+            nb_x0 += 10
+            sigma_mutation *= 0.7
+            #dx -= 0.02/nb_segment*10 
+            print("évolution à la génération", génération, ": nb_x0 =", nb_x0)
+            score,_,_,_,_ = fitness_lourde(pop_triée[0],dx)
+            if score <= 0.05 :
+                break
+    pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,nb_x0))
     fitness_affichage(pop_triée[0],dx,Lforet)
     print(coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
