@@ -55,7 +55,7 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 nb_individu = 30
 
 #cas zalgaller : l0 = 2,278
-nb_segment = 6
+nb_segment = 4
 #dx =  #longueur de chaque segment
 dx = (2.278 + 0.1)/nb_segment*10 #Lforet = 10
 
@@ -74,7 +74,7 @@ def création_pop (nb_individu,nb_segment) :
         population.append([distrib_uniforme(-180,180) for _ in range (nb_segment)])
     return population
 
-def angles_a_forme (Langles,dx) :
+def angles_a_forme (Langles,dx) : #petite optimisation mais confusion : le 1er angle est inutile
     x , y = 0 , 0
     fap = [(x,y)]
     orientation = 0
@@ -271,46 +271,45 @@ def gradient_color(t):
 # Création de la fenêtre principale
 hauteur = 400*2
 largeur = 600*2
-fenêtre = Tk()
-fenêtre.title("évaluation du fitness score simplifiée")
-fenêtre.geometry("1126x900")
-fenêtre.configure(bg="#020618")
+fenêtre1 = Tk()
+fenêtre1.title("évaluation du fitness score simplifiée")
+fenêtre1.geometry("1126x900")
+fenêtre1.configure(bg="#020618")
 #moncanva = Canvas(fenêtre)
-moncanva = Canvas(fenêtre,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
-moncanva.place(relx=0.5, rely=0.5, anchor='center')
-fenêtre.update_idletasks()
+moncanva1 = Canvas(fenêtre1,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
+moncanva1.place(relx=0.5, rely=0.5, anchor='center')
+fenêtre1.update_idletasks()
 
 
-def convertisseur_affine_x (x) :
+def convertisseur_affine_x (x,canva) :
     #return (544-15)/(20+10)*(x+10) + 15
     #return x*largeur/(4*Lforet)
-    largeur_canva = moncanva.winfo_width()
+    largeur_canva = canva.winfo_width()
     return largeur_canva// 2 + x / (Lforet * 3.5) * largeur_canva
-def convertisseur_affine_y (y) :
+def convertisseur_affine_y (y,canva) :
     #return (65-595)/(15+15)*(y+15) + 595
     #return y*hauteur/(4*Lforet)
-    hauteur_canva = moncanva.winfo_height()
-    largeur_canva = moncanva.winfo_width()
-    return hauteur_canva // 2 + y / (Lforet * 3.5) * largeur_canva
+    hauteur_canva = canva.winfo_height()
+    largeur_canva = canva.winfo_width()
+    return hauteur_canva // 2 - y / (Lforet * 3.5) * largeur_canva
 
-def nv_point (x,y,tx):
+def nv_point (x,y,tx,canva):
     R = 4
-    X = convertisseur_affine_x(x)
-    Y = convertisseur_affine_y(y)
-    return moncanva.create_oval(X-R,Y-R,X+R,Y+R,fill=gradient_color(tx))
+    X = convertisseur_affine_x(x,canva)
+    Y = convertisseur_affine_y(y,canva)
+    return canva.create_oval(X-R,Y-R,X+R,Y+R,fill=gradient_color(tx))
 
-def nv_ligne (x0,y0,x1,y1,tx) :
+def nv_ligne (x0,y0,x1,y1,tx,canva) :
     épaisseur = 2
     if tx == 2 :
         couleur = "white"
     else :
         couleur = gradient_color(tx)
-    X0 = convertisseur_affine_x(x0)
-    Y0 = convertisseur_affine_y(y0)
-    X1 = convertisseur_affine_x(x1)
-    Y1 = convertisseur_affine_y(y1)
-    return moncanva.create_line(X0,Y0,X1,Y1,fill=couleur)
-
+    X0 = convertisseur_affine_x(x0,canva)
+    Y0 = convertisseur_affine_y(y0,canva)
+    X1 = convertisseur_affine_x(x1,canva)
+    Y1 = convertisseur_affine_y(y1,canva)
+    return canva.create_line(X0,Y0,X1,Y1,fill=couleur)
 #moncanva.create_oval(100,100,200,200,fill="red")
 
 def afficher_individu (individu,dx,x0,inclinaison,tx) : #matrice de rotation cachée
@@ -319,14 +318,48 @@ def afficher_individu (individu,dx,x0,inclinaison,tx) : #matrice de rotation cac
         x , y = xy_ind[i]
         xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180)
     for i in range (1,len(xy_ind)) :
-        nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx)
-    nv_point(x0,0,tx)
+        nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx,moncanva1)
+    nv_point(x0,0,tx,moncanva1)
+
+def affichage_forme_unique (individu,dx) :
+    hauteur = 400*2
+    largeur = 600*2
+    fenêtre2 = Tk()
+    fenêtre2.title("évaluation du fitness score simplifiée")
+    fenêtre2.geometry("1126x900")
+    fenêtre2.configure(bg="#020618")
+    moncanva2 = Canvas(fenêtre2,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
+    moncanva2.place(relx=0.5, rely=0.5, anchor='center')
+    fenêtre2.update_idletasks()
+    individu[0] = 0 #pour orienter la forme
+    xy_ind = angles_a_forme(individu,dx)
+    #centrage :
+    val_extrm = [0,0,0,0] #x_min,x_max,y_min,y_max
+    for (x,y) in xy_ind :
+        if x < val_extrm[0] :
+            val_extrm[0] = x
+        if x > val_extrm[1] :
+            val_extrm[1] = x
+        if y < val_extrm[2] :
+            val_extrm[2] = y
+        if y > val_extrm[3] :
+            val_extrm[3] = y
+    coef = 10*min(2.33 / (val_extrm[3]-val_extrm[2]), 3.5 / (val_extrm[1]-val_extrm[0]))*0.9 #0.9 pour la marge
+    milieu_x = (val_extrm[0] + val_extrm[1]) / 2
+    milieu_y = (val_extrm[2] + val_extrm[3]) / 2
+    tx = 1
+    for i in range (1,len(xy_ind)) :
+        nv_ligne((xy_ind[i-1][0]-milieu_x)*coef,(xy_ind[i-1][1]-milieu_y)*coef,(xy_ind[i][0]-milieu_x)*coef,(xy_ind[i][1]-milieu_y)*coef,tx,moncanva2)
+        nv_point((xy_ind[i-1][0]-milieu_x)*coef,(xy_ind[i-1][1]-milieu_y)*coef,tx,moncanva2)
+        tx -= 1/(len(xy_ind)-1)
+    #moncanva2.pack(expand=True)
+    #fenêtre2.mainloop()
 
 
 def fitness_affichage (individu,dx,Lforet) :
     #nb_segment = len(individu)
-    nv_ligne(-Lforet/2,-moncanva.winfo_height()//2,-Lforet/2,moncanva.winfo_height()//2,2)
-    nv_ligne(Lforet/2,-moncanva.winfo_height()//2,Lforet/2,moncanva.winfo_height()//2,2)
+    nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+    nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
     nb_x0 = 5
     nb_orientations = 5
     x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
@@ -336,8 +369,6 @@ def fitness_affichage (individu,dx,Lforet) :
             #print(x0,orientation)
             afficher_individu (individu,dx,x0,orientation,tx)
         tx += 1/(nb_x0)
-
-
 
 def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste pour le test final
     #nb_segment = len(individu)
@@ -398,6 +429,7 @@ def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation) :
                 break
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,nb_x0))
     fitness_affichage(pop_triée[0],dx,Lforet)
+    affichage_forme_unique (pop_triée[0],dx)
     print(coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
     print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
@@ -412,5 +444,5 @@ plt.xscale("log")
 #plt.yscale("log")
 plt.show()
 
-moncanva.pack(expand=True)
-fenêtre.mainloop()
+moncanva1.pack(expand=True)
+fenêtre1.mainloop()

@@ -14,7 +14,7 @@ print (canvas.winfo_width())
 
 root.mainloop()"""
 
-import random 
+"""import random 
 import matplotlib.pyplot as plt 
 	
 # store the random numbers in a list 
@@ -52,4 +52,8 @@ for i in range(50000):
 
 # plotting a graph 
 plt.hist(nums, bins = 200) 
-plt.show()
+plt.show()"""
+
+nb_orientations = 8
+from math import pi
+print([(2*pi*k/nb_orientations - pi)/pi*180 for k in range (nb_orientations)])
