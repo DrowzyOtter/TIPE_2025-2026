@@ -53,7 +53,21 @@ for i in range(50000):
 # plotting a graph 
 plt.hist(nums, bins = 200) 
 plt.show()"""
-
+"""
 nb_orientations = 8
 from math import pi
 print([(2*pi*k/nb_orientations - pi)/pi*180 for k in range (nb_orientations)])
+"""
+"""
+# test fct en argument
+def f1(x):
+    return x + 2
+def f2(x):
+    return x * x
+def appliquer_fonction_sur_liste(f, liste):
+    return [f(x) for x in liste]
+print(appliquer_fonction_sur_liste(f1, [1, 2, 3]))
+print(appliquer_fonction_sur_liste(f2, [1, 2, 3]))
+print(appliquer_fonction_sur_liste(lambda x: x - 5, [1, 2, 3]))
+"""
+

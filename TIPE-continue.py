@@ -53,6 +53,7 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 ###generateur à points équidistants par liste d'angles (modèle 1)
 """varables"""
 nb_individu = 30
+nom_foret = "Zalgaller"
 
 #cas zalgaller : l0 = 2,278
 nb_segment = 4
@@ -109,12 +110,32 @@ def placement_initial_possible (foret_rec) : #méthode matrice rota (rota du che
 #region : cas de Zalgaller : bande infini (de largeur L)
 Lforet = 10
 
-def vecteur_de_départ_Zalgaller (Lforet) :
+def vecteur_de_départ_Zalgaller (Lforet) : #-> (x0, orientation)
     orientation = distrib_uniforme(-180, 180)
     x0 = distrib_uniforme(-Lforet/2,Lforet/2 )
     return (x0, orientation)
 
-def appartenance_Zalgaller (Lforet, x0, orientation, x, y) :
+def appartenance_Zalgaller (Lforet, x0, orientation, x, y) : #-> bool
+    ε = 1e-10
+    if (sin(orientation) < ε) : # Pour éviter les approximations dues aux flottants
+        return -Lforet/2 <= x <= Lforet/2
+    else :
+        orientation_radian = orientation * pi /180
+        pente = - tan(pi/2 - orientation_radian) #eq de la droite : y = pente * x + y0 
+        bool1 = y <= pente * x - (x0 - Lforet / 2) / sin(orientation_radian)
+        bool2 = y >= pente * x - (x0 + Lforet / 2) / sin(orientation_radian)
+        return (bool1 and bool2) or (not bool1 and not bool2) #on ne pense pas tout de suite au second cas
+
+#endregion
+#region : cas de Isbell : demi-plan (dont la frontière est à une distance L)
+Lforet = 10
+
+def vecteur_de_départ_Isbell (Lforet) : #-> (x0, orientation)
+    orientation = distrib_uniforme(-180, 180)
+    x0 = 0 #inutile
+    return (x0, orientation)
+
+def appartenance_Isbell (Lforet, x0, orientation, x, y) : #-> bool
     ε = 1e-10
     if (sin(orientation) < ε) : # Pour éviter les approximations dues aux flottants
         return -Lforet/2 <= x <= Lforet/2
@@ -127,25 +148,25 @@ def appartenance_Zalgaller (Lforet, x0, orientation, x, y) :
 
 #endregion
 ###évaluation d'un individu (Z)
-def création_positions_évaluées_aléatoires (nb_positions_évaluées,Lforet) :
+def création_positions_évaluées_aléatoires (nb_positions_évaluées,Lforet) : #-> liste de (x0,orientation)
     positions_évaluées = []
     for _ in range (nb_positions_évaluées) : 
         positions_évaluées.append(vecteur_de_départ_Zalgaller(Lforet))
     return positions_évaluées
 
-def création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet) :
-    x0_évalués = liste_équirépartie(-Lforet/2+0.5,Lforet/2-0.5,nb_x0)
+def création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet) : #-> liste de x0 , liste d'orientations
+    x0_évalués = liste_équirépartie(-Lforet/2+0.1,Lforet/2-0.1,nb_x0)
     #orientations_évaluées = liste_équirépartie(-360 * (1 - 1/nb_orientations/2),360 * (1 - 1/nb_orientations/2),nb_orientations) #/!\ à fixer
     orientations_évaluées = [(2*pi*k/nb_orientations - pi)/pi*180 for k in range (nb_orientations)]
     return x0_évalués, orientations_évaluées
 
-def fitness (individu,dx,nb_x0) :
+def fitness (individu,dx,nb_x0) : #-> score (nb entre 0 et nb_x0 * nb_orientations)
     #nb_segment = len(individu)
     #nb_x0 = 20
     nb_orientations = 2*nb_x0
     xy_ind = angles_a_forme(individu,dx)
     score = nb_x0 * nb_orientations #part du pire score possible
-    x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
+    x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet) #idiot de recalculer à chaque fois
     for x0 in x0_évalués :
         for orientation in orientations_évaluées :
             dedans = []
@@ -195,11 +216,11 @@ def tri_fusion (couples) :
 
 #-------------------------------------------#
 
-def évaluation_et_tri (population,dx,nb_x0) :
+def évaluation_et_tri (population,dx,nb_x0) : #-> liste de couples (fitness score,individu)
     coût_associé = []
     for individu in population :
         coût_associé.append((fitness(individu,dx,nb_x0),individu))
-    return tri_fusion(coût_associé)
+    return sorted(coût_associé) #ou tri_fusion(coût_associé)
 
 def couples_à_listes (couples) :
     pop_triée =[]
@@ -209,8 +230,7 @@ def couples_à_listes (couples) :
         coût_trié.append(coût)
     return pop_triée, coût_trié
 
-
-def séléction (pop_triée,coût_trié,sigma_mutation) :
+def séléction (pop_triée,coût_trié,sigma_mutation) : #-> nouvelle population
     nv_population = pop_triée[:répartition[0]][:] #élitisme
     for X in pioche_parmi_un_intervalle(répartition[0],len(pop_triée),répartition[1]): #réplication
         nv_population.append(pop_triée[X])
@@ -225,6 +245,7 @@ def séléction (pop_triée,coût_trié,sigma_mutation) :
         nv_population.append(indivdu)
     return nv_population
 
+#region : test execution
 ###execution
 """for _ in range (30):
     x0 , orientation = vecteur_de_départ_Zalgaller (Lforet)
@@ -239,6 +260,7 @@ print(sin(pi/2))"""
 #print([x for x,y in angles_a_forme(population[0],dx)])
 #pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx))
 #print(coût_trié)
+#endregion
 
 ###-------------------------------###
 ###         visualisation         ###
@@ -312,16 +334,16 @@ def nv_ligne (x0,y0,x1,y1,tx,canva) :
     return canva.create_line(X0,Y0,X1,Y1,fill=couleur)
 #moncanva.create_oval(100,100,200,200,fill="red")
 
-def afficher_individu (individu,dx,x0,inclinaison,tx) : #matrice de rotation cachée
+def afficher_individu (individu,dx,x0,inclinaison,tx) : #-> None
     xy_ind = angles_a_forme(individu,dx)
     for i in range (len(xy_ind)) :
         x , y = xy_ind[i]
-        xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180)
+        xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180) #matrice de rotation cachée
     for i in range (1,len(xy_ind)) :
         nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx,moncanva1)
     nv_point(x0,0,tx,moncanva1)
 
-def affichage_forme_unique (individu,dx) :
+def affichage_forme_unique (individu,dx) : #-> None
     hauteur = 400*2
     largeur = 600*2
     fenêtre2 = Tk()
@@ -355,12 +377,12 @@ def affichage_forme_unique (individu,dx) :
     #moncanva2.pack(expand=True)
     #fenêtre2.mainloop()
 
-
-def fitness_affichage (individu,dx,Lforet) :
+def fitness_affichage_z_or_i (individu,dx,Lforet,nom_foret : str) : #-> None
     #nb_segment = len(individu)
     nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
-    nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
-    nb_x0 = 5
+    if nom_foret == "Zalgaller" :
+        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+        nb_x0 = 5
     nb_orientations = 5
     x0_évalués, orientations_évaluées = création_positions_évaluées_équiréparti (nb_x0,nb_orientations,Lforet)
     tx = 0
@@ -406,10 +428,10 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
     return score*100, tx_moyen*100, nb_erreurs, nb_x0 * nb_orientations, nb_segments_inutiles_moyen
 
 
-#fitness_affichage(pop_triée[0],dx,Lforet)
+#fitness_affichage_z_or_i(pop_triée[0],dx,Lforet,"Zalgaller")
 #print (moncanva.winfo_width())
 
-def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation) :
+def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,nom_foret) : #-> meilleur_score , score_moyen
     global dx
     meilleur_score , score_moyen = [] , []
     nb_x0 = 20
@@ -428,7 +450,7 @@ def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation) :
             if score <= 0.05 :
                 break
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,nb_x0))
-    fitness_affichage(pop_triée[0],dx,Lforet)
+    fitness_affichage_z_or_i(pop_triée[0],dx,Lforet,nom_foret)
     affichage_forme_unique (pop_triée[0],dx)
     print(coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
