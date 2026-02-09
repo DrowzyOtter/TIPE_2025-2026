@@ -6,6 +6,8 @@ from math import sin,cos,tan,sqrt,log,exp,pi
 def distrib_uniforme (inf,sup) :
     return (sup-inf)*random() + inf
 def liste_équirépartie (a,b,nb) :
+    if nb == 1 :
+        return [(a+b)/2]
     return [a + (b-a)*k/(nb-1) for k in range (nb)]
 def distrib_gaussienne_centrée_tronquée (inf,sup,k) : #sur l'intervalle [mu - k*sigma ; mu + k*sigma]
     mu = (inf + sup)/2
@@ -52,19 +54,21 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 # endregion
 ###generateur à points équidistants par liste d'angles (modèle 1)
 """varables"""
-nb_individu = 30
+nb_individu = 100
 Lforet = 10 #largeur de la foret pour zalgaller et isbell
-nom_foret = "Zalgaller"
+nom_foret = "isbell" # "Zalgaller"
 
 #cas zalgaller : l0 = 2,278
-nb_segment = 4
+#cas isbell : l0 = 6.3972 * distance à la frontière
+nb_segment = 15
 #dx =  #longueur de chaque segment
-dx = (2.278 + 0.1)/nb_segment*10 #Lforet = 10
+dx = (6.3972/2 + 0.1)/nb_segment*Lforet
 
-sigma_mutation = 0.01 #écart type relatif pour la mutation
-nb_génération = 100
+sigma_mutation = 0.005 * 1#écart type relatif pour la mutation
+nb_génération = 1000
 génération_actuelle = 0
-répartition = [5,0,10,25] #élitisme, réplication, croisement, mutation
+répartition = [5,5,35,55] #élitisme, réplication, croisement, mutation
+assert sum(répartition) == nb_individu
 
 """variables de test"""
 Lex1 = [0,0,90,0,-90] #liste des angles successifs décrivant un individu
@@ -155,7 +159,7 @@ def appartenance_Isbell (x0, orientation, x, y) : #-> bool
         orientation_radian = orientation * pi /180
         pente = - tan(pi/2 - orientation_radian) #eq de la droite : y = pente * x + y0 
         bool1 = y <= pente * x - (x0 - Lforet / 2) / sin(orientation_radian)
-        bool2 = y >= pente * x - (x0 + Lforet / 2) / sin(orientation_radian)
+        bool2 = sin(orientation_radian) > 0
         return (bool1 and bool2) or (not bool1 and not bool2) #on ne pense pas tout de suite au second cas
 
 #endregion
@@ -373,14 +377,14 @@ def nv_ligne (x0,y0,x1,y1,tx,canva) :
     return canva.create_line(X0,Y0,X1,Y1,fill=couleur)
 #moncanva.create_oval(100,100,200,200,fill="red")
 
-def afficher_individu (individu,dx,x0,inclinaison,tx) : #-> None
+def afficher_individu (individu,dx,x0,y0,inclinaison,tx) : #-> None
     xy_ind = angles_a_forme(individu,dx)
     for i in range (len(xy_ind)) :
         x , y = xy_ind[i]
-        xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180) #matrice de rotation cachée
+        xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180) + y0 #matrice de rotation cachée
     for i in range (1,len(xy_ind)) :
         nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx,moncanva1)
-    nv_point(x0,0,tx,moncanva1)
+    nv_point(x0,y0,tx,moncanva1)
 
 def affichage_forme_unique (individu,dx) : #-> None
     hauteur = 400*2
@@ -419,47 +423,105 @@ def affichage_forme_unique (individu,dx) : #-> None
 def fitness_affichage_z_or_i (individu,dx,nom_foret : str) : #-> None
     #nb_segment = len(individu)
     global Lforet
-    nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+    nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
     if nom_foret == "Zalgaller" :
-        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+        nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
         nb_x0 = 5
+    elif nom_foret == "Isbell" :
+        nb_x0 = 1
+    else :
+        breakpoint("nom_foret doit être Zalgaller ou Isbell")
     nb_orientations = 5
-    x0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
     tx = 0
     for x0 in x0_évalués :
-        for orientation in orientations_évaluées :
-            #print(x0,orientation)
-            afficher_individu (individu,dx,x0,orientation,tx)
-        tx += 1/(nb_x0)
+        for y0 in y0_évalués :
+            for orientation in orientations_évaluées :
+                #if nom_foret == "Zalgaller" :
+                #print(x0,orientation)
+                afficher_individu (individu,dx,x0,y0,orientation,tx)
+                tx += 1/(nb_x0*len(y0_évalués)*nb_orientations)
+
+def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
+    global Lforet
+    nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+    if nom_foret == "Zalgaller" :
+        nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+        nb_x0 = 5
+    elif nom_foret == "Isbell" :
+        nb_x0 = 1
+    else :
+        breakpoint("nom_foret doit être Zalgaller ou Isbell")
+    nb_orientations = 50
+    xy_ind = angles_a_forme(individu,dx)
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
+    if nom_foret == "Zalgaller" :
+        for x0 in x0_évalués :
+            for y0 in y0_évalués :
+                for orientation in orientations_évaluées :
+                    dedans = []
+                    for (x,y) in xy_ind :
+                        dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
+                    if False in dedans :
+                        afficher_individu (individu,dx,x0,y0,orientation,0)
+                    else :
+                        afficher_individu (individu,dx,x0,y0,orientation,1)
+                        
+    elif nom_foret == "Isbell" :
+        for x0 in x0_évalués :
+            for y0 in y0_évalués :
+                for orientation in orientations_évaluées :
+                    dedans = []
+                    for (x,y) in xy_ind :
+                        dedans.append(appartenance_Isbell(x0,orientation,x,y))
+                    if False in dedans :
+                        afficher_individu (individu,dx,x0,y0,orientation,0)
+                    else :
+                        afficher_individu (individu,dx,x0,y0,orientation,1)
+    elif nom_foret == "rectangle" :
+        for x0 in x0_évalués :
+            for y0 in y0_évalués :
+                for orientation in orientations_évaluées :
+                    dedans = []
+                    for (x,y) in xy_ind :
+                        dedans.append(appartenance_rectangle(x0,y0,orientation,x,y))
+                    if False in dedans :
+                        afficher_individu (individu,dx,x0,y0,orientation,0)
+                    else :
+                        afficher_individu (individu,dx,x0,y0,orientation,1)
+
+
+    
 
 def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste pour le test final
     #nb_segment = len(individu)
     nb_x0 = 100
-    nb_orientations = 60
+    nb_orientations = 100
     xy_ind = angles_a_forme(individu,dx)
     tx_moyen = 0
     score = 1
     nb_erreurs = nb_x0 * nb_orientations
     nb_segments_inutiles_total = 0
-    x0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
     for x0 in x0_évalués :
-        for orientation in orientations_évaluées :
-            dedans = []
-            tx = 0
-            #for x,y in angles_a_forme(individu,dx) :
-            for (x,y) in xy_ind :
-                dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
-            for val in dedans : #useless
-                tx += int(val)/len(dedans)
-            for i in range(len(dedans)) :
-                if dedans[i] == False :
-                    nb_segments_inutiles_total += len(dedans) - i #on compte les segments après la première sortie de la foret
-                    nb_erreurs -= 1
-                    break
-            #if tx < 1 :
-            #    score -= 1/(nb_x0 * nb_orientations)
+        for y0 in y0_évalués :
+            for orientation in orientations_évaluées :
+                dedans = []
+                tx = 0
+                #for x,y in angles_a_forme(individu,dx) :
+                for (x,y) in xy_ind :
+                    dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
+                for val in dedans : #useless
+                    tx += int(val)/len(dedans)
+                for i in range(len(dedans)) :
+                    if dedans[i] == False :
+                        nb_segments_inutiles_total += len(dedans) - i #on compte les segments après la première sortie de la foret
+                        nb_erreurs -= 1
+                        break
+                #if tx < 1 :
+                #    score -= 1/(nb_x0 * nb_orientations)
 
-            tx_moyen += tx/(nb_x0 * nb_orientations)
+                tx_moyen += tx/(nb_x0 * len(y0_évalués) * nb_orientations)
     if (nb_x0 * nb_orientations - nb_erreurs) > 0 : #dénombre les segments inutiles moyens parmi les essais réussis
         nb_segments_inutiles_moyen = nb_segments_inutiles_total / (nb_x0 * nb_orientations - nb_erreurs)
     else :
@@ -474,7 +536,7 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
 def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,nom_foret) : #-> meilleur_score , score_moyen
     global dx
     meilleur_score , score_moyen = [] , []
-    para_evaluation = [20,1,40] #nb_x0,nb_y0,nb_orientations
+    para_evaluation = [1,1,80] #nb_x0,nb_y0,nb_orientations
     nb_x0 = para_evaluation[0]
     population = création_pop(nb_individu,nb_segment)
     for génération in range (nb_génération) :
@@ -491,14 +553,15 @@ def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,nom_foret)
             if score <= 0.05 :
                 break
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
-    fitness_affichage_z_or_i(pop_triée[0],dx,nom_foret)
+    fitness_affichage_z_or_i_2(pop_triée[0],dx,nom_foret)
     affichage_forme_unique (pop_triée[0],dx)
     print(coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
     print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
     return meilleur_score , score_moyen
 
-meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,"Zalgaller")
+meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,"Isbell")
+#fitness_affichage_z_or_i ([0,0,0,0],dx,"Isbell")
 
 import matplotlib.pyplot as plt
 plt.plot(meilleur_score) #[i+1 for i in range(nb_génération)]
