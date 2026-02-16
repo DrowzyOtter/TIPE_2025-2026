@@ -54,20 +54,21 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 # endregion
 ###generateur à points équidistants par liste d'angles (modèle 1)
 """varables"""
-nb_individu = 100
-Lforet = 10 #largeur de la foret pour zalgaller et isbell
-nom_foret = "isbell" # "Zalgaller"
+nb_individu = 50
+Lforet = 10 #largeur de la foret pour Zalgaller et Isbell
+nom_foret = "Isbell"
+#nom_foret = "Zalgaller"
 
 #cas zalgaller : l0 = 2,278
-#cas isbell : l0 = 6.3972 * distance à la frontière
-nb_segment = 15
+#cas isbell : l0 = 6.3972/2 * distance à la frontière
+nb_segment = 12
 #dx =  #longueur de chaque segment
 dx = (6.3972/2 + 0.1)/nb_segment*Lforet
 
-sigma_mutation = 0.005 * 1#écart type relatif pour la mutation
-nb_génération = 1000
+sigma_mutation = 0.005 * 2#écart type relatif pour la mutation
+nb_génération = 800
 génération_actuelle = 0
-répartition = [5,5,35,55] #élitisme, réplication, croisement, mutation
+répartition = [5,0,10,35] #élitisme, réplication, croisement, mutation
 assert sum(répartition) == nb_individu
 
 """variables de test"""
@@ -160,7 +161,7 @@ def appartenance_Isbell (x0, orientation, x, y) : #-> bool
         pente = - tan(pi/2 - orientation_radian) #eq de la droite : y = pente * x + y0 
         bool1 = y <= pente * x - (x0 - Lforet / 2) / sin(orientation_radian)
         bool2 = sin(orientation_radian) > 0
-        return (bool1 and bool2) or (not bool1 and not bool2) #on ne pense pas tout de suite au second cas
+        return (bool1 and bool2) or (not bool1 and not bool2)
 
 #endregion
 ###évaluation d'un individu (Z)
@@ -172,8 +173,10 @@ def création_positions_évaluées_aléatoires (nb_positions_évaluées,Lforet) 
 
 def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> score (nb entre 0 et nb_x0 * nb_orientations)
     #nb_segment = len(individu)
+    global génération_actuelle
     xy_ind = angles_a_forme(individu,dx)
     score = para_evaluation[0] * para_evaluation[1] * para_evaluation[2] #part du pire score possible
+    #print("score max à la génération", génération_actuelle, ":", score)
     x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (para_evaluation[0],para_evaluation[2]) #idiot de recalculer à chaque fois
     """
     for x0 in x0_évalués :
@@ -219,6 +222,8 @@ def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> score (nb entre
                         dedans.append(appartenance_rectangle(x0,y0,orientation,x,y))
                     if False in dedans :
                         score -= 1
+    if score <= 0 :
+        print("score à la génération", génération_actuelle, ":", score)
     return score
 
 ###méthode 1 bis : tri du couple (f.score,indiv)
@@ -463,9 +468,11 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
                     for (x,y) in xy_ind :
                         dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
                     if False in dedans :
-                        afficher_individu (individu,dx,x0,y0,orientation,0)
+                        afficher_individu (individu,dx,x0,y0,-orientation,0) #/!\ on a - orientation car l'oriantation de la forme est inverse de celle de la foret
                     else :
-                        afficher_individu (individu,dx,x0,y0,orientation,1)
+                        afficher_individu (individu,dx,x0,y0,-orientation,1)
+                        #print ("x0 =", x0, "orientation =", orientation)
+                        #print(dedans)
                         
     elif nom_foret == "Isbell" :
         for x0 in x0_évalués :
@@ -475,9 +482,9 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
                     for (x,y) in xy_ind :
                         dedans.append(appartenance_Isbell(x0,orientation,x,y))
                     if False in dedans :
-                        afficher_individu (individu,dx,x0,y0,orientation,0)
+                        afficher_individu (individu,dx,x0,y0,-orientation,0)
                     else :
-                        afficher_individu (individu,dx,x0,y0,orientation,1)
+                        afficher_individu (individu,dx,x0,y0,-orientation,1)
     elif nom_foret == "rectangle" :
         for x0 in x0_évalués :
             for y0 in y0_évalués :
@@ -486,9 +493,9 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
                     for (x,y) in xy_ind :
                         dedans.append(appartenance_rectangle(x0,y0,orientation,x,y))
                     if False in dedans :
-                        afficher_individu (individu,dx,x0,y0,orientation,0)
+                        afficher_individu (individu,dx,x0,y0,-orientation,0)
                     else :
-                        afficher_individu (individu,dx,x0,y0,orientation,1)
+                        afficher_individu (individu,dx,x0,y0,-orientation,1)
 
 
     
@@ -535,32 +542,42 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
 
 def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,nom_foret) : #-> meilleur_score , score_moyen
     global dx
+    global génération_actuelle
+    génération_actuelle = 0
     meilleur_score , score_moyen = [] , []
-    para_evaluation = [1,1,80] #nb_x0,nb_y0,nb_orientations
-    nb_x0 = para_evaluation[0]
+    if nom_foret == "Zalgaller" :
+        para_evaluation = [8,1,20]
+    elif nom_foret == "Isbell" :
+        para_evaluation = [1,1,80]
+    elif nom_foret == "rectangle" :
+        para_evaluation = [1,1,80] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
+    else :
+        breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
+    #nb_x0 = para_evaluation[0]
     population = création_pop(nb_individu,nb_segment)
     for génération in range (nb_génération) :
+        génération_actuelle = génération
         pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
         meilleur_score.append(coût_trié[0])
         score_moyen.append(sum(coût_trié)/len(pop_triée))
         population = séléction (pop_triée,coût_trié,sigma_mutation)
-        if coût_trié[0] <= 0 :
+        """if coût_trié[0] <= 0 :
             nb_x0 += 10
             sigma_mutation *= 0.7
             #dx -= 0.02/nb_segment*10 
             print("évolution à la génération", génération, ": nb_x0 =", nb_x0)
             score,_,_,_,_ = fitness_lourde(pop_triée[0],dx)
             if score <= 0.05 :
-                break
+                break"""
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
     fitness_affichage_z_or_i_2(pop_triée[0],dx,nom_foret)
     affichage_forme_unique (pop_triée[0],dx)
-    print(coût_trié[0])
+    print("meilleur coût_trié[0] =", coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
     print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
     return meilleur_score , score_moyen
 
-meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,"Isbell")
+meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,nom_foret)
 #fitness_affichage_z_or_i ([0,0,0,0],dx,"Isbell")
 
 import matplotlib.pyplot as plt
