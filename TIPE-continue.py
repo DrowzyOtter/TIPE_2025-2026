@@ -55,17 +55,20 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 ###generateur à points équidistants par liste d'angles (modèle 1)
 """varables"""
 nb_individu = 50
-Lforet = 10 #largeur de la foret pour Zalgaller et Isbell
+Lforet = 10 #largeur de la foret pour Zalgaller, Isbell et Rectangle
+Hforet = 10 #hauteur de la foret pour Rectangle
 nom_foret = "Isbell"
 #nom_foret = "Zalgaller"
+#nom_foret = "Rectangle"
 
 #cas zalgaller : l0 = 2,278
 #cas isbell : l0 = 6.3972/2 * distance à la frontière
+#cas rectangle l0 sqrt(L^2+l^2)
 nb_segment = 12
-#dx =  #longueur de chaque segment
+#dx = #longueur de chaque segment
 dx = (6.3972/2 + 0.1)/nb_segment*Lforet
 
-sigma_mutation = 0.005 * 2#écart type relatif pour la mutation
+sigma_mutation = 0.005 * 2 #écart type relatif pour la mutation
 nb_génération = 800
 génération_actuelle = 0
 répartition = [5,0,10,35] #élitisme, réplication, croisement, mutation
@@ -100,7 +103,7 @@ def angles_a_forme (Langles,dx) : #petite optimisation mais confusion : le 1er a
 
 ###test de présence et vecteur de départ avec une definition parametrique de la foret
 #region : cas simplifié : rectangle (suivant la grille)
-foret_rec= (-5,5,-5*3,5*3) # tuple des coordonnées x1, x2, y1 et y2
+"""foret_rec= (-5,5,-5*3,5*3) # tuple des coordonnées x1, x2, y1 et y2
 
 def vecteur_de_départ_rectangle () : #méthode matrice rota (rota du chemin)
     global foret_rec
@@ -108,27 +111,44 @@ def vecteur_de_départ_rectangle () : #méthode matrice rota (rota du chemin)
     orientation = distrib_uniforme(-180, 180)
     x , y = distrib_uniforme(x1 , x2) , distrib_uniforme(y1 , y2)
     return x , y , orientation
+"""
 
 def appartenance_rectangle (x0,y0,orientation,x,y) :
-    global foret_rec
-    x1,x2,y1,y2 = foret_rec
-    return (x1 <= x <= x2) and (y1 <= y <= y2)
+    global Lforet
+    global Hforet
+    ε = 1e-10
+    if (sin(orientation) < ε) : # Pour éviter les approximations dues aux flottants
+        return ( - Lforet/2 <= x <= Lforet/2) and ( - Hforet/2 <= y <= Hforet/2)
+    elif (cos(orientation) < ε) :
+        return ( - Hforet/2 <= x <= Hforet/2) and ( - Lforet/2 <= y <= Lforet/2)
+    else :
+        orientation_radian = orientation * pi /180
+        pente1 = - tan(pi/2 - orientation_radian) #eq de la droite : y = pente * x + y0 
+        bool1 = y - y0 <= pente1 * (x-x0) - (0 - Lforet / 2) / sin(orientation_radian)
+        bool2 = y - y0 >= pente1 * (x-x0) - (0 + Lforet / 2) / sin(orientation_radian)
+        pente2 = - tan(pi/2 - (orientation_radian + pi/2))
+        bool3 = y - y0 >= pente2 * (x-x0) - (0 - Hforet / 2) / sin(orientation_radian + pi/2)
+        bool4 = y - y0 >= pente2 * (x-x0) - (0 + Hforet / 2) / sin(orientation_radian + pi/2)
+        return ((bool1 and bool2) or (not bool1 and not bool2)) and ((bool3 and bool4) or (not bool3 and not bool4))
 
 #endregion
 #region : cas de Zalgaller : bande infini (de largeur L)
 
-def vecteur_de_départ_Zalgaller () : #-> (x0, orientation)
+"""def vecteur_de_départ_Zalgaller () : #-> (x0, orientation)
     global Lforet
     orientation = distrib_uniforme(-180, 180)
     x0 = distrib_uniforme(-Lforet/2,Lforet/2 )
-    return (x0, orientation)
+    return (x0, orientation)"""
 
-def positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations) : #-> liste de x0 , liste d'orientations
+def positions_évaluées_équiréparti (nb_x0,nb_y0,nb_orientations) : #-> liste de x0 , liste de y0, liste d'orientations
     global Lforet
-    x0_évalués = liste_équirépartie(-Lforet/2+0.1,Lforet/2-0.1,nb_x0)
+    global Hforet
+    ε = 1e-2
+    x0_évalués = liste_équirépartie(-Lforet/2+ε,Lforet/2-ε,nb_x0)
+    y0_évalués = liste_équirépartie(-Hforet/2+ε,Hforet/2-ε,nb_y0)
     #orientations_évaluées = liste_équirépartie(-360 * (1 - 1/nb_orientations/2),360 * (1 - 1/nb_orientations/2),nb_orientations) #/!\ à fixer
     orientations_évaluées = [(2*pi*k/nb_orientations - pi)/pi*180 for k in range (nb_orientations)]
-    return x0_évalués, [1], orientations_évaluées
+    return x0_évalués, y0_évalués, orientations_évaluées
 
 def appartenance_Zalgaller (x0, orientation, x, y) : #-> bool
     global Lforet
@@ -144,14 +164,15 @@ def appartenance_Zalgaller (x0, orientation, x, y) : #-> bool
 
 #endregion
 #region : cas de Isbell : demi-plan (dont la frontière est à une distance L)
-
+"""
 def vecteur_de_départ_Isbell () : #-> (x0, orientation)
     global Lforet
     orientation = distrib_uniforme(-180, 180)
     x0 = 0 #inutile
-    return (x0, orientation)
+    return orientation
+"""
 
-def appartenance_Isbell (x0, orientation, x, y) : #-> bool
+def appartenance_Isbell (orientation, x, y) : #-> bool
     global Lforet
     ε = 1e-10
     if (sin(orientation) < ε) : # Pour éviter les approximations dues aux flottants
@@ -159,17 +180,26 @@ def appartenance_Isbell (x0, orientation, x, y) : #-> bool
     else :
         orientation_radian = orientation * pi /180
         pente = - tan(pi/2 - orientation_radian) #eq de la droite : y = pente * x + y0 
-        bool1 = y <= pente * x - (x0 - Lforet / 2) / sin(orientation_radian)
+        bool1 = y <= pente * x + (Lforet / 2) / sin(orientation_radian)
         bool2 = sin(orientation_radian) > 0
         return (bool1 and bool2) or (not bool1 and not bool2)
 
 #endregion
-###évaluation d'un individu (Z)
-def création_positions_évaluées_aléatoires (nb_positions_évaluées,Lforet) : #-> liste de (x0,orientation)
+###évaluation d'un individu
+
+def appartenance_foret (nom_foret,x0,orientation,x,y) :
+    if nom_foret == "Zalgaller" :
+        appartenance_Zalgaller(x0,orientation,x,y)
+    elif nom_foret == "Isbell" :
+        appartenance_Isbell(x0,orientation,x,y)
+    elif nom_foret == "rectangle" :
+        appartenance_rectangle(x0,orientation,x,y)
+
+"""def création_positions_évaluées_aléatoires (nb_positions_évaluées,Lforet) : #-> liste de (x0,orientation)
     positions_évaluées = []
     for _ in range (nb_positions_évaluées) : 
         positions_évaluées.append(vecteur_de_départ_Zalgaller(Lforet))
-    return positions_évaluées
+    return positions_évaluées"""
 
 def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> score (nb entre 0 et nb_x0 * nb_orientations)
     #nb_segment = len(individu)
@@ -177,7 +207,7 @@ def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> score (nb entre
     xy_ind = angles_a_forme(individu,dx)
     score = para_evaluation[0] * para_evaluation[1] * para_evaluation[2] #part du pire score possible
     #print("score max à la génération", génération_actuelle, ":", score)
-    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (para_evaluation[0],para_evaluation[2]) #idiot de recalculer à chaque fois
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation) #idiot de recalculer à chaque fois
     """
     for x0 in x0_évalués :
         for y0 in y0_évalués :
@@ -197,22 +227,20 @@ def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> score (nb entre
     """    
     if nom_foret == "Zalgaller" :
         for x0 in x0_évalués :
-            for y0 in y0_évalués :
-                for orientation in orientations_évaluées :
-                    dedans = []
-                    for (x,y) in xy_ind :
-                        dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
-                    if False in dedans :
-                        score -= 1
+            for orientation in orientations_évaluées :
+                dedans = []
+                for (x,y) in xy_ind :
+                    dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
+                if False in dedans :
+                    score -= 1
     elif nom_foret == "Isbell" :
         for x0 in x0_évalués :
-            for y0 in y0_évalués :
-                for orientation in orientations_évaluées :
-                    dedans = []
-                    for (x,y) in xy_ind :
-                        dedans.append(appartenance_Isbell(x0,orientation,x,y))
-                    if False in dedans :
-                        score -= 1
+            for orientation in orientations_évaluées :
+                dedans = []
+                for (x,y) in xy_ind :
+                    dedans.append(appartenance_Isbell(x0,orientation,x,y))
+                if False in dedans :
+                    score -= 1
     elif nom_foret == "rectangle" :
         for x0 in x0_évalués :
             for y0 in y0_évalués :
@@ -293,8 +321,8 @@ def séléction (pop_triée,coût_trié,sigma_mutation) : #-> nouvelle populatio
         nv_population.append(indivdu)
     return nv_population
 
-#region : test execution
-###execution
+#region : test éxecution
+###éxecution
 """for _ in range (30):
     x0 , orientation = vecteur_de_départ_Zalgaller ()
     x , y = distrib_uniforme(-5 , 5) , distrib_uniforme(-5 , 5)
@@ -437,7 +465,7 @@ def fitness_affichage_z_or_i (individu,dx,nom_foret : str) : #-> None
     else :
         breakpoint("nom_foret doit être Zalgaller ou Isbell")
     nb_orientations = 5
-    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti ([nb_x0,1,nb_orientations])
     tx = 0
     for x0 in x0_évalués :
         for y0 in y0_évalués :
@@ -459,7 +487,7 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
         breakpoint("nom_foret doit être Zalgaller ou Isbell")
     nb_orientations = 50
     xy_ind = angles_a_forme(individu,dx)
-    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti ([nb_x0,1,nb_orientations])
     if nom_foret == "Zalgaller" :
         for x0 in x0_évalués :
             for y0 in y0_évalués :
@@ -509,7 +537,7 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
     score = 1
     nb_erreurs = nb_x0 * nb_orientations
     nb_segments_inutiles_total = 0
-    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti_zalgaller (nb_x0,nb_orientations)
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti ([nb_x0,1,nb_orientations])
     for x0 in x0_évalués :
         for y0 in y0_évalués :
             for orientation in orientations_évaluées :
@@ -517,7 +545,7 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
                 tx = 0
                 #for x,y in angles_a_forme(individu,dx) :
                 for (x,y) in xy_ind :
-                    dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
+                    dedans.append(appartenance_foret(nom_foret,x0,orientation,x,y))
                 for val in dedans : #useless
                     tx += int(val)/len(dedans)
                 for i in range(len(dedans)) :
@@ -540,7 +568,8 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
 #fitness_affichage_z_or_i(pop_triée[0],dx,"Zalgaller")
 #print (moncanva.winfo_width())
 
-def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,nom_foret) : #-> meilleur_score , score_moyen
+def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur_score , score_moyen
+    global sigma_mutation
     global dx
     global génération_actuelle
     génération_actuelle = 0
@@ -550,7 +579,7 @@ def éxecution (nb_individu,nb_génération,nb_segment,sigma_mutation,nom_foret)
     elif nom_foret == "Isbell" :
         para_evaluation = [1,1,80]
     elif nom_foret == "rectangle" :
-        para_evaluation = [1,1,80] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
+        para_evaluation = [6,6,10] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
     else :
         breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
     #nb_x0 = para_evaluation[0]
