@@ -66,11 +66,11 @@ nom_foret = "rectangle"
 #cas rectangle l0 2.0471 ?? sqrt(Lforet^2+Hforet^2)
 nb_segment = 10
 #dx = #longueur de chaque segment
-dx = (sqrt(Lforet^2+Hforet^2) + 0.1)/nb_segment*Lforet
+dx = (sqrt(2) + 0.1)/nb_segment*Lforet
 
 
 sigma_mutation = 0.005 * 3 #écart type relatif pour la mutation
-nb_génération = 6
+nb_génération = 30
 génération_actuelle = 0
 répartition = [5,0,15,40] #élitisme, réplication, croisement, mutation
 assert sum(répartition) == nb_individu
@@ -215,57 +215,33 @@ def appartenance_foret (nom_foret,x0,y0,orientation,x,y) :
         positions_évaluées.append(vecteur_de_départ_Zalgaller(Lforet))
     return positions_évaluées"""
 
-def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> score (nb entre 0 et nb_x0 * nb_orientations)
-    #nb_segment = len(individu)
+def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> nombre d'échecs (à minimiser)
     global génération_actuelle
     xy_ind = angles_a_forme(individu,dx)
-    score = para_evaluation[0] * para_evaluation[1] * para_evaluation[2] #part du pire score possible
-    print("score max à la génération", génération_actuelle, ":", score)
-    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation) #idiot de recalculer à chaque fois
-    """
-    for x0 in x0_évalués :
-        for y0 in y0_évalués :
-            for orientation in orientations_évaluées :
-                dedans = []
-                #for x,y in angles_a_forme(individu,dx) :
-                for (x,y) in xy_ind :
-                    if nom_foret == "Zalgaller" :
-                        dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
-                    elif nom_foret == "Isbell" :
-                        dedans.append(appartenance_Isbell(x0,orientation,x,y))
-                    elif nom_foret == "rectangle" :
-                        dedans.append(appartenance_rectangle(x0,y0,orientation,x,y))
-                if False in dedans : #si au moins un segment est hors de la foret
-                    score -= 1
-    return score
-    """    
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation)
+    échecs = 0
     if nom_foret == "Zalgaller" :
         for x0 in x0_évalués :
             for orientation in orientations_évaluées :
-                dedans = []
-                for (x,y) in xy_ind :
-                    dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
-                if False in dedans :
-                    score -= 1
+                dedans = [appartenance_Zalgaller(x0,orientation,x,y) for (x,y) in xy_ind]
+                if not False in dedans :
+                    échecs += 1
     elif nom_foret == "Isbell" :
         for x0 in x0_évalués :
             for orientation in orientations_évaluées :
-                dedans = []
-                for (x,y) in xy_ind :
-                    dedans.append(appartenance_Isbell(x0,orientation,x,y))
-                if False in dedans :
-                    score -= 1
+                dedans = [appartenance_Isbell(x0,orientation,x,y) for (x,y) in xy_ind]
+                if not False in dedans :
+                    échecs += 1
     elif nom_foret == "rectangle" :
         for x0 in x0_évalués :
             for y0 in y0_évalués :
                 for orientation in orientations_évaluées :
-                    dedans = []
-                    for (x,y) in xy_ind :
-                        dedans.append(appartenance_rectangle(x0,y0,orientation,x,y))
-                    if False in dedans :
-                        score -= 1
-        print("score à la génération", génération_actuelle, ":", score)
-    return score
+                    dedans = [appartenance_rectangle(x0,y0,orientation,x,y) for (x,y) in xy_ind]
+                    if not False in dedans :
+                        échecs += 1
+    else :
+        breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
+    return échecs
 
 ###méthode 1 bis : tri du couple (f.score,indiv)
 def fusion (c1,c2) :
@@ -500,7 +476,7 @@ def fitness_affichage_z_or_i (individu,dx,nom_foret : str) : #-> None
                 #print(x0,orientation)
                 afficher_individu (individu,dx,x0,y0,orientation,tx)
                 tx += 1/(nb_x0*nb_y0*nb_orientations)
-                print(tx,len(x0_évalués),len(y0_évalués),len(orientations_évaluées))
+                #print(tx,len(x0_évalués),len(y0_évalués),len(orientations_évaluées))
 
 def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
     global Lforet
@@ -621,7 +597,7 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     elif nom_foret == "Isbell" :
         para_evaluation = [1,1,100]
     elif nom_foret == "rectangle" :
-        para_evaluation = [6,6,10] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
+        para_evaluation = [10,10,10] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
     else :
         breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
     #nb_x0 = para_evaluation[0]
