@@ -1,5 +1,7 @@
 from random import random,gauss
 from math import sin,cos,tan,sqrt,log,exp,pi
+from multiprocessing import Pool
+from functools import partial
 
 #region : foctions de distribution et tirage aléatoire 
 
@@ -69,7 +71,7 @@ nb_segment = 10
 dx = (6.3972/2 + 0.1)/nb_segment*Lforet
 
 sigma_mutation = 0.005 * 3 #écart type relatif pour la mutation
-nb_génération = 600
+nb_génération = 6
 génération_actuelle = 0
 répartition = [5,0,15,40] #élitisme, réplication, croisement, mutation
 assert sum(répartition) == nb_individu
@@ -297,11 +299,24 @@ def tri_fusion (couples) :
 
 #-------------------------------------------#
 
-def évaluation_et_tri (population,dx,para_evaluation,nom_foret) : #-> liste de couples (fitness score,individu)
+"""def évaluation_et_tri (population,dx,para_evaluation,nom_foret) : #-> liste de couples (fitness score,individu)
     coût_associé = []
     for individu in population :
         coût_associé.append((fitness(individu,dx,para_evaluation,nom_foret),individu))
     return sorted(coût_associé) #ou tri_fusion(coût_associé)
+"""
+
+def évaluation_et_tri (population,dx,para_evaluation,nom_foret) :
+    # Fonction wrapper pour passer les paramètres à la pool
+    evaluate_func = partial(fitness, dx=dx, para_evaluation=para_evaluation, nom_foret=nom_foret)
+    
+    # Paralléliser l'évaluation des individus
+    with Pool() as pool:
+        scores = pool.map(evaluate_func, population)
+    
+    # Reconstruire les couples (score, individu)
+    coût_associé = list(zip(scores, population))
+    return sorted(coût_associé)
 
 def couples_à_listes (couples) :
     pop_triée =[]
@@ -371,17 +386,9 @@ def gradient_color(t):
 
     return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
 
-# Création de la fenêtre principale
-hauteur = 400*2
-largeur = 600*2
-fenêtre1 = Tk()
-fenêtre1.title("évaluation du fitness score simplifiée")
-fenêtre1.geometry("1126x900")
-fenêtre1.configure(bg="#020618")
-#moncanva = Canvas(fenêtre)
-moncanva1 = Canvas(fenêtre1,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
-moncanva1.place(relx=0.5, rely=0.5, anchor='center')
-fenêtre1.update_idletasks()
+# Variables globales pour la fenêtre (initialisées dans if __name__ == '__main__')
+fenêtre1 = None
+moncanva1 = None
 
 
 def convertisseur_affine_x (x,canva) :
@@ -579,7 +586,8 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     global dx
     global génération_actuelle
     génération_actuelle = 0
-    meilleur_score , score_moyen = [] , []
+    sigma_ref = sigma_mutation
+    meilleur_score , score_moyen , val_sigma = [] , [] , []
     if nom_foret == "Zalgaller" :
         para_evaluation = [8,1,20]
     elif nom_foret == "Isbell" :
@@ -597,6 +605,7 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
         pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
         meilleur_score.append(coût_trié[0])
         score_moyen.append(sum(coût_trié)/len(pop_triée))
+        val_sigma.append(sigma_mutation/sigma_ref*20)
         population = séléction (pop_triée,coût_trié,sigma_mutation)
         """if coût_trié[0] <= 0 :
             nb_x0 += 10
@@ -612,17 +621,30 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     print("meilleur coût_trié[0] =", coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
     print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
-    return meilleur_score , score_moyen
+    return meilleur_score , score_moyen , val_sigma
 
-meilleur_score , score_moyen = éxecution (nb_individu,nb_génération,nb_segment,nom_foret)
-#fitness_affichage_z_or_i ([0,0,0,0],dx,"Isbell")
+if __name__ == '__main__':
+    # Création de la fenêtre principale
+    hauteur = 400*2
+    largeur = 600*2
+    fenêtre1 = Tk()
+    fenêtre1.title("évaluation du fitness score simplifiée")
+    fenêtre1.geometry("1126x900")
+    fenêtre1.configure(bg="#020618")
+    moncanva1 = Canvas(fenêtre1,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
+    moncanva1.place(relx=0.5, rely=0.5, anchor='center')
+    fenêtre1.update_idletasks()
+    
+    meilleur_score , score_moyen , val_sigma = éxecution (nb_individu,nb_génération,nb_segment,nom_foret)
+    #fitness_affichage_z_or_i ([0,0,0,0],dx,"Isbell")
 
-import matplotlib.pyplot as plt
-plt.plot(meilleur_score) #[i+1 for i in range(nb_génération)]
-plt.plot(score_moyen) #brouillon d'echelle log : [log(i+1) for i in range(500)]
-plt.xscale("log")
-#plt.yscale("log")
-plt.show()
+    import matplotlib.pyplot as plt
+    plt.plot(meilleur_score) #[i+1 for i in range(nb_génération)]
+    plt.plot(score_moyen) #brouillon d'echelle log : [log(i+1) for i in range(500)]
+    #plt.plot(score_moyen)
+    plt.xscale("log")
+    #plt.yscale("log")
+    plt.show()
 
-moncanva1.pack(expand=True)
-fenêtre1.mainloop()
+    moncanva1.pack(expand=True)
+    fenêtre1.mainloop()
