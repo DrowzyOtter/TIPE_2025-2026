@@ -54,25 +54,35 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 # endregion
 ###generateur à points équidistants par liste d'angles (modèle 1)
 """varables"""
-nb_individu = 60
+nb_individu = 75
 Lforet = 10 #largeur de la foret pour Zalgaller, Isbell et rectangle
 Hforet = 10 #hauteur de la foret pour rectangle
-#nom_foret = "Isbell"
+nom_foret = "Isbell"
 #nom_foret = "Zalgaller"
-nom_foret = "rectangle"
+#nom_foret = "rectangle"
 
 #cas zalgaller : l0 = 2.278
 #cas isbell : l0 = 6.3972/2 * distance à la frontière
-#cas rectangle l0 2.0471 ?? sqrt(Lforet^2+Hforet^2)
-nb_segment = 10
+#cas rectangle l0 (((2.0471 ?? sqrt(Lforet^2+Hforet^2)))) sqrt(2)
+nb_segment = 12
 #dx = #longueur de chaque segment
-dx = (sqrt(2) + 0.1)/nb_segment*Lforet
+if nom_foret == "Isbell" :
+    l0 = 6.3972/2
+elif nom_foret == "Zalgaller" :
+    l0 = 2.278
+elif nom_foret == "rectangle" :
+    l0 = sqrt(2)
+else :
+    breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
 
 
-sigma_mutation = 0.005 * 3 #écart type relatif pour la mutation
-nb_génération = 30
+dx = ( l0 + 0.03)/nb_segment*Lforet
+
+
+sigma_mutation = 0.005 * 2 #écart type relatif pour la mutation
+nb_génération = 200
 génération_actuelle = 0
-répartition = [5,0,15,40] #élitisme, réplication, croisement, mutation
+répartition = [3,5,27,40] #élitisme, réplication, croisement, mutation
 assert sum(répartition) == nb_individu
 
 """variables de test"""
@@ -163,10 +173,10 @@ def positions_évaluées_équiréparti (para) : #-> liste de x0 , liste de y0, l
 def appartenance_Zalgaller (x0, orientation, x, y) : #-> bool
     global Lforet
     ε = 1e-10
-    if (abs(sin(orientation)) < ε) : # Pour éviter les approximations dues aux flottants
+    orientation_radian = orientation * pi /180
+    if (abs(sin(orientation_radian)) < ε) : # Pour éviter les approximations dues aux flottants
         return -Lforet/2 <= x <= Lforet/2
     else :
-        orientation_radian = orientation * pi /180
         pente = - tan(pi/2 - orientation_radian) #eq de la droite : y = pente * x + y0 
         bool1 = y <= pente * x - (x0 - Lforet / 2) / sin(orientation_radian)
         bool2 = y >= pente * x - (x0 + Lforet / 2) / sin(orientation_radian)
@@ -185,11 +195,11 @@ def vecteur_de_départ_Isbell () : #-> (x0, orientation)
 def appartenance_Isbell (x0,orientation,x, y) : #-> bool
     global Lforet
     ε = 1e-5
-    if abs(sin(orientation)) < ε : # Pour éviter les approximations dues aux flottants (or -180.1 < orientation < -179.9)
+    orientation_radian = orientation * pi /180
+    if abs(sin(orientation_radian)) < ε : # Pour éviter les approximations dues aux flottants (or -180.1 < orientation < -179.9)
         #print("celui-la")
         return -Lforet/2 <= x <= Lforet/2
     else :
-        orientation_radian = orientation * pi /180
         pente = - tan(pi/2 - orientation_radian) #eq de la droite : y = pente * x + y0 
         bool1 = y <= pente * x + (Lforet / 2) / sin(orientation_radian)
         bool2 = sin(orientation_radian) > 0
@@ -484,9 +494,9 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
     if nom_foret == "Zalgaller" :
         nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
         nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
-        nb_x0 = 5
+        nb_x0 = 6
         nb_y0 = 1
-        nb_orientations = 35
+        nb_orientations = 40
     elif nom_foret == "Isbell" :
         nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
         nb_x0 = 1
@@ -593,9 +603,9 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     sigma_ref = sigma_mutation
     meilleur_score , score_moyen , val_sigma = [] , [] , []
     if nom_foret == "Zalgaller" :
-        para_evaluation = [8,1,20]
+        para_evaluation = [15,1,40]
     elif nom_foret == "Isbell" :
-        para_evaluation = [1,1,100]
+        para_evaluation = [1,1,300]
     elif nom_foret == "rectangle" :
         para_evaluation = [10,10,10] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
     else :
@@ -620,11 +630,12 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
             if score <= 0.05 :
                 break"""
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
-    fitness_affichage_z_or_i(pop_triée[0],dx,nom_foret)
+    fitness_affichage_z_or_i_2(pop_triée[0],dx,nom_foret)
     affichage_forme_unique (pop_triée[0],dx)
     print("meilleur coût_trié[0] =", coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
     print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
+    print("meilleur_individu", pop_triée[0])
     return meilleur_score , score_moyen , val_sigma
 
 meilleur_score , score_moyen , val_sigma = éxecution (nb_individu,nb_génération,nb_segment,nom_foret)
