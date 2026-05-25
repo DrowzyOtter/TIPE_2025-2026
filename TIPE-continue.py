@@ -57,14 +57,14 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 nb_individu = 75
 Lforet = 10 #largeur de la foret pour Zalgaller, Isbell et rectangle
 Hforet = 10 #hauteur de la foret pour rectangle
-nom_foret = "Isbell"
-#nom_foret = "Zalgaller"
+#nom_foret = "Isbell"
+nom_foret = "Zalgaller"
 #nom_foret = "rectangle"
 
 #cas zalgaller : l0 = 2.278
 #cas isbell : l0 = 6.3972/2 * distance à la frontière
 #cas rectangle l0 (((2.0471 ?? sqrt(Lforet^2+Hforet^2)))) sqrt(2)
-nb_segment = 12
+nb_segment = 8
 #dx = #longueur de chaque segment
 if nom_foret == "Isbell" :
     l0 = 6.3972/2
@@ -73,17 +73,19 @@ elif nom_foret == "Zalgaller" :
 elif nom_foret == "rectangle" :
     l0 = sqrt(2)
 else :
-    breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
+    raise Exception("nom_foret doit être Zalgaller ou Isbell ou rectangle")
 
 
 dx = ( l0 + 0.03)/nb_segment*Lforet
 
 
 sigma_mutation = 0.005 * 2 #écart type relatif pour la mutation
-nb_génération = 200
+nb_génération = 1000
 génération_actuelle = 0
 répartition = [3,5,27,40] #élitisme, réplication, croisement, mutation
 assert sum(répartition) == nb_individu
+
+données_csv = []
 
 """variables de test"""
 Lex1 = [0,0,90,0,-90] #liste des angles successifs décrivant un individu
@@ -217,7 +219,7 @@ def appartenance_foret (nom_foret,x0,y0,orientation,x,y) :
     elif nom_foret == "rectangle" :
         return appartenance_rectangle(x0,y0,orientation,x,y)
     else :
-        breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
+        raise Exception("nom_foret doit être Zalgaller ou Isbell ou rectangle")
 
 """def création_positions_évaluées_aléatoires (nb_positions_évaluées,Lforet) : #-> liste de (x0,orientation)
     positions_évaluées = []
@@ -250,7 +252,7 @@ def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> nombre d'échec
                     if not False in dedans :
                         échecs += 1
     else :
-        breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
+        raise Exception("nom_foret doit être Zalgaller ou Isbell ou rectangle")
     return échecs
 
 ###méthode 1 bis : tri du couple (f.score,indiv)
@@ -348,17 +350,17 @@ def gradient_color(t):
     Renvoie la couleur hexadécimale correspondant à t ∈ [0, 1].
     """
     # Points du gradient
-    A = (20, 110, 145)
-    B = (87, 199, 133)
-    C = (237, 221, 83)
+    A = (1, 69, 31) #20, 110, 145 //  0, 122, 51
+    B = (71, 122, 54) #87, 199, 133 // 114, 237, 165
+    C = (214, 197, 43) #237, 221, 83 // 237, 221, 83
 
-    if t <= 0.67:
-        u = t / 0.67
+    if t <= 0.4:
+        u = t / 0.4 #0.67
         r = A[0] + u * (B[0] - A[0])
         g = A[1] + u * (B[1] - A[1])
         b = A[2] + u * (B[2] - A[2])
     else:
-        u = (t - 0.67) / (1 - 0.67)
+        u = (t - 0.4) / (1 - 0.4)
         r = B[0] + u * (C[0] - B[0])
         g = B[1] + u * (C[1] - B[1])
         b = B[2] + u * (C[2] - B[2])
@@ -371,9 +373,10 @@ largeur = 600*2
 fenêtre1 = Tk()
 fenêtre1.title("évaluation du fitness score simplifiée")
 fenêtre1.geometry("1126x900")
-fenêtre1.configure(bg="#020618")
+fenêtre1.configure(bg="#EEEEE2") # #020618
+
 #moncanva = Canvas(fenêtre)
-moncanva1 = Canvas(fenêtre1,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
+moncanva1 = Canvas(fenêtre1,width=largeur,height=hauteur, bg="#EEEEE2",borderwidth=0,highlightthickness=0) #020618
 moncanva1.place(relx=0.5, rely=0.5, anchor='center')
 fenêtre1.update_idletasks()
 
@@ -396,36 +399,44 @@ def nv_point (x,y,tx,canva):
     Y = convertisseur_affine_y(y,canva)
     return canva.create_oval(X-R,Y-R,X+R,Y+R,fill=gradient_color(tx))
 
-def nv_ligne (x0,y0,x1,y1,tx,canva) :
+def nv_ligne (x0,y0,x1,y1,tx,canva,style="defaut") :
     épaisseur = 2
-    if tx == 2 :
-        couleur = "white"
-    else :
-        couleur = gradient_color(tx)
     X0 = convertisseur_affine_x(x0,canva)
     Y0 = convertisseur_affine_y(y0,canva)
     X1 = convertisseur_affine_x(x1,canva)
     Y1 = convertisseur_affine_y(y1,canva)
-    return canva.create_line(X0,Y0,X1,Y1,fill=couleur)
+    if style == "frontiere" :
+        couleur = "#290E00" #"white"
+        largeur = 5
+    elif style == "fine" :
+        largeur = 2
+        couleur = "#93BA8F"
+    elif style == "defaut" :
+        largeur = 3
+        couleur = gradient_color(tx)
+    return canva.create_line(X0,Y0,X1,Y1,fill=couleur,width=largeur)
 #moncanva.create_oval(100,100,200,200,fill="red")
 
-def afficher_individu (individu,dx,x0,y0,inclinaison,tx) : #-> None
+def afficher_individu (individu,dx,x0,y0,inclinaison,tx,style="defaut") : #-> None
     xy_ind = angles_a_forme(individu,dx)
     for i in range (len(xy_ind)) :
         x , y = xy_ind[i]
         xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180) + y0 #matrice de rotation cachée
     for i in range (1,len(xy_ind)) :
-        nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx,moncanva1)
+        nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx,moncanva1,style)
     nv_point(x0,y0,tx,moncanva1)
 
-def affichage_forme_unique (individu,dx) : #-> None
+def affichage_forme_unique (individu,dx,nom_page="None") : #-> None
     hauteur = 400*2
     largeur = 600*2
     fenêtre2 = Tk()
-    fenêtre2.title("évaluation du fitness score simplifiée")
+    if nom_page == "None" :
+        fenêtre2.title("évaluation du fitness score simplifiée")
+    else :
+        fenêtre2.title(nom_page)
     fenêtre2.geometry("1126x900")
-    fenêtre2.configure(bg="#020618")
-    moncanva2 = Canvas(fenêtre2,width=largeur,height=hauteur, bg="#020618",borderwidth=0,highlightthickness=0)
+    fenêtre2.configure(bg="#EEEEE2") # 020618
+    moncanva2 = Canvas(fenêtre2,width=largeur,height=hauteur, bg="#EEEEE2",borderwidth=0,highlightthickness=0)
     moncanva2.place(relx=0.5, rely=0.5, anchor='center')
     fenêtre2.update_idletasks()
     individu[0] = 0 #pour orienter la forme
@@ -457,26 +468,26 @@ def fitness_affichage_z_or_i (individu,dx,nom_foret : str) : #-> None
     global Lforet
     global Hforet
     if nom_foret == "Zalgaller" :
-        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
-        nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1,style="frontiere")
         nb_x0 = 5
         nb_y0 = 1
         nb_orientations = 35
     elif nom_foret == "Isbell" :
-        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1,style="frontiere")
         nb_x0 = 1
         nb_y0 = 1
         nb_orientations = 50
     elif nom_foret == "rectangle" :
-        nv_ligne(Lforet/2,-Hforet/2,Lforet/2,Hforet/2,2,moncanva1)
-        nv_ligne(-Lforet/2,-Hforet/2,-Lforet/2,Hforet/2,2,moncanva1)
-        nv_ligne(-Lforet/2,-Hforet/2,Lforet/2,-Hforet/2,2,moncanva1)
-        nv_ligne(-Lforet/2,Hforet/2,Lforet/2,Hforet/2,2,moncanva1)
+        nv_ligne(Lforet/2,-Hforet/2,Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,-Hforet/2,-Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,-Hforet/2,Lforet/2,-Hforet/2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,Hforet/2,Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
         nb_x0 = 3
         nb_y0 = 3
         nb_orientations = 5
     else :
-        breakpoint("nom_foret doit être Zalgaller ou Isbell")
+        raise Exception("nom_foret doit être Zalgaller ou Isbell")
     x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti ([nb_x0,nb_y0,nb_orientations])
     tx = 0
     for x0 in x0_évalués :
@@ -484,7 +495,7 @@ def fitness_affichage_z_or_i (individu,dx,nom_foret : str) : #-> None
             for orientation in orientations_évaluées :
                 #if nom_foret == "Zalgaller" :
                 #print(x0,orientation)
-                afficher_individu (individu,dx,x0,y0,orientation,tx)
+                afficher_individu (individu,dx,x0,y0,orientation,tx,style="fine")
                 tx += 1/(nb_x0*nb_y0*nb_orientations)
                 #print(tx,len(x0_évalués),len(y0_évalués),len(orientations_évaluées))
 
@@ -492,26 +503,26 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
     global Lforet
     global Hforet
     if nom_foret == "Zalgaller" :
-        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
-        nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,-moncanva1.winfo_height()//2,-Lforet/2,moncanva1.winfo_height()//2,2,moncanva1,style="frontiere")
         nb_x0 = 6
         nb_y0 = 1
         nb_orientations = 40
     elif nom_foret == "Isbell" :
-        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1)
+        nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1,style="frontiere")
         nb_x0 = 1
         nb_y0 = 1
         nb_orientations = 50
     elif nom_foret == "rectangle" :
-        nv_ligne(Lforet/2,-Hforet/2,Lforet/2,Hforet/2,2,moncanva1)
-        nv_ligne(-Lforet/2,-Hforet/2,-Lforet/2,Hforet/2,2,moncanva1)
-        nv_ligne(-Lforet/2,-Hforet/2,Lforet/2,-Hforet/2,2,moncanva1)
-        nv_ligne(-Lforet/2,Hforet/2,Lforet/2,Hforet/2,2,moncanva1)
+        nv_ligne(Lforet/2,-Hforet/2,Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,-Hforet/2,-Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,-Hforet/2,Lforet/2,-Hforet/2,2,moncanva1,style="frontiere")
+        nv_ligne(-Lforet/2,Hforet/2,Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
         nb_x0 = 3
         nb_y0 = 3
         nb_orientations = 5
     else :
-        breakpoint("nom_foret doit être Zalgaller ou Isbell")
+        raise Exception("nom_foret doit être Zalgaller ou Isbell")
     xy_ind = angles_a_forme(individu,dx)
     x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti ([nb_x0,nb_y0,nb_orientations])
     if nom_foret == "Zalgaller" :
@@ -522,9 +533,9 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
                     for (x,y) in xy_ind :
                         dedans.append(appartenance_Zalgaller(x0,orientation,x,y))
                     if False in dedans :
-                        afficher_individu (individu,dx,x0,y0,-orientation,0) #/!\ on a - orientation car l'oriantation de la forme est inverse de celle de la foret
+                        afficher_individu (individu,dx,x0,y0,-orientation,1,style="fine") #/!\ on a - orientation car l'oriantation de la forme est inverse de celle de la foret
                     else :
-                        afficher_individu (individu,dx,x0,y0,-orientation,1)
+                        afficher_individu (individu,dx,x0,y0,-orientation,0)
                         #print ("x0 =", x0, "orientation =", orientation)
                         #print(dedans)
                         
@@ -536,9 +547,9 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
                     for (x,y) in xy_ind :
                         dedans.append(appartenance_Isbell(x0,orientation,x,y))
                     if False in dedans :
-                        afficher_individu (individu,dx,x0,y0,-orientation,0)
+                        afficher_individu (individu,dx,x0,y0,-orientation,1,style="fine")
                     else :
-                        afficher_individu (individu,dx,x0,y0,-orientation,1)
+                        afficher_individu (individu,dx,x0,y0,-orientation,0)
     elif nom_foret == "rectangle" :
         for x0 in x0_évalués :
             for y0 in y0_évalués :
@@ -547,11 +558,9 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
                     for (x,y) in xy_ind :
                         dedans.append(appartenance_rectangle(x0,y0,orientation,x,y))
                     if False in dedans :
-                        afficher_individu (individu,dx,x0,y0,-orientation,0)
+                        afficher_individu (individu,dx,x0,y0,-orientation,1,style="fine")
                     else :
-                        afficher_individu (individu,dx,x0,y0,-orientation,1)
-
-
+                        afficher_individu (individu,dx,x0,y0,-orientation,0)
     
 
 def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste pour le test final
@@ -599,17 +608,18 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     global sigma_mutation
     global dx
     global génération_actuelle
+    global données_csv
     génération_actuelle = 0
     sigma_ref = sigma_mutation
     meilleur_score , score_moyen , val_sigma = [] , [] , []
     if nom_foret == "Zalgaller" :
-        para_evaluation = [15,1,40]
+        para_evaluation = [6,1,100]
     elif nom_foret == "Isbell" :
         para_evaluation = [1,1,300]
     elif nom_foret == "rectangle" :
         para_evaluation = [10,10,10] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
     else :
-        breakpoint("nom_foret doit être Zalgaller ou Isbell ou rectangle")
+        raise Exception("nom_foret doit être Zalgaller ou Isbell ou rectangle")
     #nb_x0 = para_evaluation[0]
     population = création_pop(nb_individu,nb_segment)
     for génération in range (nb_génération) :
@@ -621,6 +631,8 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
         score_moyen.append(sum(coût_trié)/len(pop_triée))
         val_sigma.append(sigma_mutation/sigma_ref*20)
         population = séléction (pop_triée,coût_trié,sigma_mutation)
+        if génération in [0,10,25,50,100,250,500,750] :
+            affichage_forme_unique (pop_triée[0],dx,nom_page="solution : génération "+ str(génération))
         """if coût_trié[0] <= 0 :
             nb_x0 += 10
             sigma_mutation *= 0.7
@@ -642,12 +654,16 @@ meilleur_score , score_moyen , val_sigma = éxecution (nb_individu,nb_générati
 #fitness_affichage_z_or_i ([0,0,0,0],dx,"Isbell")
 
 import matplotlib.pyplot as plt
-plt.plot(meilleur_score) #[i+1 for i in range(nb_génération)]
-plt.plot(score_moyen) #brouillon d'echelle log : [log(i+1) for i in range(500)]
+plt.plot(meilleur_score,c="#3a5a40") #[i+1 for i in range(nb_génération)]
+plt.plot(score_moyen,c="#a3b18a") #brouillon d'echelle log : [log(i+1) for i in range(500)]
 #plt.plot(score_moyen)
 plt.xscale("log")
 #plt.yscale("log")
 plt.show()
 
+#------------------------------#
+
+
+#------------------------------#
 moncanva1.pack(expand=True)
 fenêtre1.mainloop()
