@@ -305,7 +305,8 @@ def évaluation_et_tri_dyna (population,dx,para_evaluation,nom_foret) : #-> list
     global génération_actuelle
     global vecteurs_départ
     global nb_individu
-    if génération_actuelle == 0 :
+    if génération_actuelle % 25 == 0 :
+        vecteurs_départ = []
         x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation)
         for x0 in x0_évalués :
             for y0 in y0_évalués :
