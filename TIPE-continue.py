@@ -57,8 +57,8 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
 nb_individu = 75
 Lforet = 10 #largeur de la foret pour Zalgaller, Isbell et rectangle
 Hforet = 10 #hauteur de la foret pour rectangle
-#nom_foret = "Isbell"
-nom_foret = "Zalgaller"
+nom_foret = "Isbell"
+#nom_foret = "Zalgaller"
 #nom_foret = "rectangle"
 
 #cas zalgaller : l0 = 2.278
@@ -85,6 +85,7 @@ génération_actuelle = 0
 répartition = [3,5,27,40] #élitisme, réplication, croisement, mutation
 assert sum(répartition) == nb_individu
 
+vecteurs_départ = []
 données_csv = []
 
 """variables de test"""
@@ -210,7 +211,8 @@ def appartenance_Isbell (x0,orientation,x, y) : #-> bool
 #endregion
 ###évaluation d'un individu
 
-def appartenance_foret (nom_foret,x0,y0,orientation,x,y) :
+def appartenance_foret (nom_foret,vect_dep,x,y) :
+    x0,y0,orientation = vect_dep
     if nom_foret == "Zalgaller" :
         return appartenance_Zalgaller(x0,orientation,x,y)
     elif nom_foret == "Isbell" :
@@ -228,7 +230,6 @@ def appartenance_foret (nom_foret,x0,y0,orientation,x,y) :
     return positions_évaluées"""
 
 def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> nombre d'échecs (à minimiser)
-    global génération_actuelle
     xy_ind = angles_a_forme(individu,dx)
     x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation)
     échecs = 0
@@ -298,6 +299,39 @@ def évaluation_et_tri (population,dx,para_evaluation,nom_foret) : #-> liste de 
     for individu in population :
         coût_associé.append((fitness(individu,dx,para_evaluation,nom_foret),individu))
     return sorted(coût_associé) #ou tri_fusion(coût_associé)
+
+
+def évaluation_et_tri_dyna (population,dx,para_evaluation,nom_foret) : #-> liste de couples (fitness score,individu)
+    global génération_actuelle
+    global vecteurs_départ
+    global nb_individu
+    if génération_actuelle == 0 :
+        x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation)
+        for x0 in x0_évalués :
+            for y0 in y0_évalués :
+                for orientation in orientations_évaluées :                        
+                    vecteurs_départ.append((x0, y0, orientation))
+    coût_associé_mat = []
+    vecteurs_départ_filtrés = []
+    for individu in population :
+        coût_associé_mat.append([0,individu])
+    for i_vect_dep in range(len(vecteurs_départ)) :
+        est_tjr_sortant = True
+        for i_ind in range(nb_individu) :
+            xy_ind = angles_a_forme(population[i_ind],dx)
+            est_sorti = False
+            for (x,y) in xy_ind :
+                if not appartenance_foret (nom_foret,vecteurs_départ[i_vect_dep],x,y) :
+                    est_sorti = True
+                    break
+            if not est_sorti :
+                est_tjr_sortant = False
+                coût_associé_mat[i_ind][0] += 1
+        if not est_tjr_sortant :
+            vecteurs_départ_filtrés.append(vecteurs_départ[i_vect_dep])
+    vecteurs_départ = vecteurs_départ_filtrés
+    return sorted([tuple(coût_associé_mat[i]) for i in range(nb_individu)])
+
 
 def couples_à_listes (couples) :
     pop_triée =[]
@@ -581,7 +615,7 @@ def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste p
                 tx = 0
                 #for x,y in angles_a_forme(individu,dx) :
                 for (x,y) in xy_ind :
-                    dedans.append(appartenance_foret(nom_foret,x0,y0,orientation,x,y))
+                    dedans.append(appartenance_foret(nom_foret,(x0,y0,orientation),x,y))
                 for val in dedans : #useless
                     tx += int(val)/len(dedans)
                 for i in range(len(dedans)) :
@@ -609,9 +643,10 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     global dx
     global génération_actuelle
     global données_csv
+    global vecteurs_départ
     génération_actuelle = 0
     sigma_ref = sigma_mutation
-    meilleur_score , score_moyen , val_sigma = [] , [] , []
+    meilleur_score , score_moyen , val_sigma, nb_vect_testés = [] , [] , [], []
     if nom_foret == "Zalgaller" :
         para_evaluation = [6,1,100]
     elif nom_foret == "Isbell" :
@@ -626,12 +661,13 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
         if génération % 100 == 0 :
             sigma_mutation *= 0.8
         génération_actuelle = génération
-        pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
+        pop_triée, coût_trié = couples_à_listes(évaluation_et_tri_dyna(population,dx,para_evaluation,nom_foret))
+        #listes affichées
         meilleur_score.append(coût_trié[0])
         score_moyen.append(sum(coût_trié)/len(pop_triée))
         val_sigma.append(sigma_mutation/sigma_ref*20)
-        population = séléction (pop_triée,coût_trié,sigma_mutation)
-        if génération in [0,10,25,50,100,250,500,750] :
+        nb_vect_testés.append(len(vecteurs_départ))
+        if génération in [0,10,50,100,500] :
             affichage_forme_unique (pop_triée[0],dx,nom_page="solution : génération "+ str(génération))
         """if coût_trié[0] <= 0 :
             nb_x0 += 10
@@ -641,6 +677,7 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
             score,_,_,_,_ = fitness_lourde(pop_triée[0],dx)
             if score <= 0.05 :
                 break"""
+        population = séléction (pop_triée,coût_trié,sigma_mutation)
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
     fitness_affichage_z_or_i_2(pop_triée[0],dx,nom_foret)
     affichage_forme_unique (pop_triée[0],dx)
@@ -648,14 +685,16 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
     print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
     print("meilleur_individu", pop_triée[0])
-    return meilleur_score , score_moyen , val_sigma
+    return meilleur_score , score_moyen , val_sigma, nb_vect_testés
 
-meilleur_score , score_moyen , val_sigma = éxecution (nb_individu,nb_génération,nb_segment,nom_foret)
+meilleur_score , score_moyen , val_sigma, nb_vect_testés= éxecution (nb_individu,nb_génération,nb_segment,nom_foret)
 #fitness_affichage_z_or_i ([0,0,0,0],dx,"Isbell")
 
 import matplotlib.pyplot as plt
 plt.plot(meilleur_score,c="#3a5a40") #[i+1 for i in range(nb_génération)]
 plt.plot(score_moyen,c="#a3b18a") #brouillon d'echelle log : [log(i+1) for i in range(500)]
+plt.plot (val_sigma)
+plt.plot(nb_vect_testés)
 #plt.plot(score_moyen)
 plt.xscale("log")
 #plt.yscale("log")
