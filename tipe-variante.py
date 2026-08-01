@@ -17,11 +17,11 @@ def distrib_gaussienne_centrée_tronquée (inf,sup,k) : #sur l'intervalle [mu - 
         X = gauss(mu,sigma)
     return X
 
-def distrib_gaussienne_tronquée (inf,sup,mu,sigma_relatif) : # un calcul d'intégrale permetterait d'avoir un équivalent du k
-    sigma = sigma_relatif * (sup - inf) #chercher la justification de cette dépendance linéaire
+def distrib_gaussienne_tronquée (inf,sup,mu,sigma_relatif) : 
+    sigma = sigma_relatif * (sup - inf)
     X = gauss(mu,sigma)
-    while X < inf or X > sup :
-        X = gauss(mu,sigma)
+    #while X < inf or X > sup :
+    #    X = gauss(mu,sigma)
     return X
 
 def pioche_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'intervalle est [ minimum ; maximum [
@@ -34,8 +34,8 @@ def pioche_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'intervalle es
             piochés.append(X)
         compteur += 1
     if len(piochés) < nb_a_pioché :
-        raise Exception("Trop peu d'éléments uniques piochés, augmenter l'intervalle ou diminuer le nombre à piocher")
-    return sorted(piochés) #ou utilisé sa propre fct de tri
+        raise Exception("Trop peu d'éléments uniques piochés")
+    return sorted(piochés)
 
 def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'intervalle est [ minimum ; maximum [
     intervalle = maximum - minimum
@@ -48,11 +48,11 @@ def pioche_couple_parmi_un_intervalle (minimum,maximum,nb_a_pioché) : #l'interv
             piochés.append((X,Y))
         compteur += 1
     if len(piochés) < nb_a_pioché :
-        raise Exception("Trop peu d'éléments uniques piochés, augmenter l'intervalle ou diminuer le nombre à piocher")
+        raise Exception("Trop peu d'éléments uniques piochés")
     return sorted(piochés) #ou utilisé sa propre fct de tri
 
 # endregion
-###generateur à points équidistants par liste d'angles (modèle 1)
+
 """varables"""
 nb_individu = 75
 Lforet = 10 #largeur de la foret pour Zalgaller, Isbell et rectangle
@@ -61,31 +61,27 @@ nom_foret = "Isbell"
 #nom_foret = "Zalgaller"
 #nom_foret = "rectangle"
 
-#cas zalgaller : l0 = 2.278
-#cas isbell : l0 = 6.3972/2 * distance à la frontière
-#cas rectangle l0 (((2.0471 ?? sqrt(Lforet^2+Hforet^2)))) sqrt(2)
-nb_segment = 30
-#dx = #longueur de chaque segment
+nb_segment = 16 #dx = longueur de chaque segment
+
 if nom_foret == "Isbell" :
     l0 = 6.3972/2
 elif nom_foret == "Zalgaller" :
     l0 = 2.278
 elif nom_foret == "rectangle" :
-    l0 = sqrt(2)
+    l0 = sqrt(1+(Hforet/Lforet)**2)
 else :
     raise Exception("nom_foret doit être Zalgaller ou Isbell ou rectangle")
 
 
-dx = ( l0 + 0.03)/nb_segment*Lforet
+dx = ( l0 + 0.03)/nb_segment*Lforet*2
+#assert abs(dx*nb_segment - (sqrt(2)+0.03)*10)<10**(-4)
 
-
-sigma_mutation = 0.005 * 2 #écart type relatif pour la mutation
-nb_génération = 1000
+sigma_mutation = 0.005 * 30 #écart type relatif pour la mutation
+nb_génération = 15
 génération_actuelle = 0
 répartition = [3,5,27,40] #élitisme, réplication, croisement, mutation
 assert sum(répartition) == nb_individu
 
-vecteurs_départ = []
 données_csv = []
 
 """variables de test"""
@@ -98,21 +94,19 @@ def création_pop (nb_individu,nb_segment) :
         population.append([distrib_uniforme(-180,180) for _ in range (nb_segment)])
     return population
 
-def angles_a_forme (Langles,dx) : #petite optimisation mais confusion : le 1er angle est inutile
+def angles_a_forme (Langles,dx) : # le 1er angle est inutile
     x , y = 0 , 0
     fap = [(x,y)]
     orientation = 0
-    #print("Langles",Langles)
     for angle in Langles :
         orientation += angle
         x , y = x + dx * sin(orientation*pi/180) , y + dx * cos(orientation*pi/180)
         fap.append((x,y))
     return fap
-#print(angles_a_forme(Lex1,2))
-def angles_a_forme2 (Langles,dx) : #petite optimisation mais confusion : le 1er angle est inutile
+
+def angles_a_forme2 (Langles,dx) : #angles absolus par rapport à l'axe des abscisses
     x , y = 0 , 0
     fap = [(x,y)]
-    #print("Langles",Langles)
     for orientation in Langles :
         x , y = x + dx * sin(orientation*pi/180) , y + dx * cos(orientation*pi/180)
         fap.append((x,y))
@@ -125,15 +119,6 @@ def angles_a_forme2 (Langles,dx) : #petite optimisation mais confusion : le 1er 
 
 ###test de présence et vecteur de départ avec une definition parametrique de la foret
 #region : cas simplifié : rectangle (suivant la grille)
-"""foret_rec= (-5,5,-5*3,5*3) # tuple des coordonnées x1, x2, y1 et y2
-
-def vecteur_de_départ_rectangle () : #méthode matrice rota (rota du chemin)
-    global foret_rec
-    x1,x2,y1,y2 = foret_rec
-    orientation = distrib_uniforme(-180, 180)
-    x , y = distrib_uniforme(x1 , x2) , distrib_uniforme(y1 , y2)
-    return x , y , orientation
-"""
 
 def appartenance_rectangle (x0,y0,orientation,x,y) :
     global Lforet
@@ -156,20 +141,13 @@ def appartenance_rectangle (x0,y0,orientation,x,y) :
 #endregion
 #region : cas de Zalgaller : bande infini (de largeur L)
 
-"""def vecteur_de_départ_Zalgaller () : #-> (x0, orientation)
-    global Lforet
-    orientation = distrib_uniforme(-180, 180)
-    x0 = distrib_uniforme(-Lforet/2,Lforet/2 )
-    return (x0, orientation)"""
-
 def positions_évaluées_équiréparti (para) : #-> liste de x0 , liste de y0, liste d'orientations
     nb_x0,nb_y0,nb_orientations = para
     global Lforet
     global Hforet
     ε = 1e-2
-    x0_évalués = liste_équirépartie(-Lforet/2+ε,Lforet/2-ε,nb_x0)
-    y0_évalués = liste_équirépartie(-Hforet/2+ε,Hforet/2-ε,nb_y0)
-    #orientations_évaluées = liste_équirépartie(-360 * (1 - 1/nb_orientations/2),360 * (1 - 1/nb_orientations/2),nb_orientations) #/!\ à fixer
+    x0_évalués = liste_équirépartie(ε,Lforet/2-ε,nb_x0)
+    y0_évalués = liste_équirépartie(ε,Hforet/2-ε,nb_y0)
     orientations_évaluées = [(2*pi*k/nb_orientations - pi)/pi*180 for k in range (nb_orientations)]
     return x0_évalués, y0_évalués, orientations_évaluées
 
@@ -187,19 +165,12 @@ def appartenance_Zalgaller (x0, orientation, x, y) : #-> bool
 
 #endregion
 #region : cas de Isbell : demi-plan (dont la frontière est à une distance L)
-"""
-def vecteur_de_départ_Isbell () : #-> (x0, orientation)
-    global Lforet
-    orientation = distrib_uniforme(-180, 180)
-    x0 = 0 #inutile
-    return orientation
-"""
 
 def appartenance_Isbell (x0,orientation,x, y) : #-> bool
     global Lforet
     ε = 1e-5
     orientation_radian = orientation * pi /180
-    if abs(sin(orientation_radian)) < ε : # Pour éviter les approximations dues aux flottants (or -180.1 < orientation < -179.9)
+    if abs(sin(orientation_radian)) < ε : # Pour éviter les approximations dues aux flottants 
         #print("celui-la")
         return -Lforet/2 <= x <= Lforet/2
     else :
@@ -211,8 +182,7 @@ def appartenance_Isbell (x0,orientation,x, y) : #-> bool
 #endregion
 ###évaluation d'un individu
 
-def appartenance_foret (nom_foret,vect_dep,x,y) :
-    x0,y0,orientation = vect_dep
+def appartenance_foret (nom_foret,x0,y0,orientation,x,y) :
     if nom_foret == "Zalgaller" :
         return appartenance_Zalgaller(x0,orientation,x,y)
     elif nom_foret == "Isbell" :
@@ -230,9 +200,10 @@ def appartenance_foret (nom_foret,vect_dep,x,y) :
     return positions_évaluées"""
 
 def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> nombre d'échecs (à minimiser)
+    global génération_actuelle
     xy_ind = angles_a_forme(individu,dx)
     x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation)
-    échecs = 0
+    lmax = float('inf')
     if nom_foret == "Zalgaller" :
         for x0 in x0_évalués :
             for orientation in orientations_évaluées :
@@ -243,8 +214,12 @@ def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> nombre d'échec
         for x0 in x0_évalués :
             for orientation in orientations_évaluées :
                 dedans = [appartenance_Isbell(x0,orientation,x,y) for (x,y) in xy_ind]
-                if not False in dedans :
-                    échecs += 1
+                if False in dedans :
+                    indice = 0
+                    lmax = dx
+                    while indice < len(dedans) and dedans[indice] :
+                        lmax += dx
+                        indice += 1
     elif nom_foret == "rectangle" :
         for x0 in x0_évalués :
             for y0 in y0_évalués :
@@ -254,7 +229,11 @@ def fitness (individu,dx,para_evaluation : list,nom_foret) : #-> nombre d'échec
                         échecs += 1
     else :
         raise Exception("nom_foret doit être Zalgaller ou Isbell ou rectangle")
-    return échecs
+    #if échecs == 0 :
+        fitness_affichage_z_or_i(individu,dx,"rectangle")
+        moncanva1.pack(expand=True)
+        fenêtre1.mainloop()
+    return lmax
 
 ###méthode 1 bis : tri du couple (f.score,indiv)
 def fusion (c1,c2) :
@@ -300,40 +279,6 @@ def évaluation_et_tri (population,dx,para_evaluation,nom_foret) : #-> liste de 
         coût_associé.append((fitness(individu,dx,para_evaluation,nom_foret),individu))
     return sorted(coût_associé) #ou tri_fusion(coût_associé)
 
-
-def évaluation_et_tri_dyna (population,dx,para_evaluation,nom_foret) : #-> liste de couples (fitness score,individu)
-    global génération_actuelle
-    global vecteurs_départ
-    global nb_individu
-    if génération_actuelle % 25 == 0 :
-        vecteurs_départ = []
-        x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti (para_evaluation)
-        for x0 in x0_évalués :
-            for y0 in y0_évalués :
-                for orientation in orientations_évaluées :                        
-                    vecteurs_départ.append((x0, y0, orientation))
-    coût_associé_mat = []
-    vecteurs_départ_filtrés = []
-    for individu in population :
-        coût_associé_mat.append([0,individu])
-    for i_vect_dep in range(len(vecteurs_départ)) :
-        est_tjr_sortant = True
-        for i_ind in range(nb_individu) :
-            xy_ind = angles_a_forme(population[i_ind],dx)
-            est_sorti = False
-            for (x,y) in xy_ind :
-                if not appartenance_foret (nom_foret,vecteurs_départ[i_vect_dep],x,y) :
-                    est_sorti = True
-                    break
-            if not est_sorti :
-                est_tjr_sortant = False
-                coût_associé_mat[i_ind][0] += 1
-        if not est_tjr_sortant :
-            vecteurs_départ_filtrés.append(vecteurs_départ[i_vect_dep])
-    vecteurs_départ = vecteurs_départ_filtrés
-    return sorted([tuple(coût_associé_mat[i]) for i in range(nb_individu)])
-
-
 def couples_à_listes (couples) :
     pop_triée =[]
     coût_trié = []
@@ -347,13 +292,13 @@ def séléction (pop_triée,coût_trié,sigma_mutation) : #-> nouvelle populatio
     for X in pioche_parmi_un_intervalle(répartition[0],len(pop_triée),répartition[1]): #réplication
         nv_population.append(pop_triée[X])
     #jusqu'ici nv_pop est triée et les fitness scores sont déjà connus
-    for (X,Y) in pioche_couple_parmi_un_intervalle(0,len(pop_triée),répartition[2]) : #croisement (on peut aussi changer pour (0,len(nv_population)))
+    for (X,Y) in pioche_couple_parmi_un_intervalle(0,len(pop_triée),répartition[2]) : #croisement 
         demi = len(pop_triée[X]) // 2
         nv_population.append(pop_triée[X][:demi] + pop_triée[Y][demi:])
     for X in pioche_parmi_un_intervalle(0,len(pop_triée),répartition[3]): #mutation
         indivdu = pop_triée[X][:]
         for i in range(len(indivdu)) :
-            indivdu[i] = distrib_gaussienne_tronquée(-180,180,indivdu[i],sigma_mutation) #sigma relatif est à changer au cours du temps
+            indivdu[i] = distrib_gaussienne_tronquée(-180,180,indivdu[i],sigma_mutation) #sigma dynamique
         nv_population.append(indivdu)
     return nv_population
 
@@ -452,11 +397,11 @@ def nv_ligne (x0,y0,x1,y1,tx,canva,style="defaut") :
     return canva.create_line(X0,Y0,X1,Y1,fill=couleur,width=largeur)
 #moncanva.create_oval(100,100,200,200,fill="red")
 
-def afficher_individu (individu,dx,x0,y0,inclinaison,tx,style="defaut") : #-> None
+def afficher_individu (individu,dx,x0,y0,incl,tx,style="defaut") : #-> None
     xy_ind = angles_a_forme(individu,dx)
     for i in range (len(xy_ind)) :
         x , y = xy_ind[i]
-        xy_ind[i] = x*cos(inclinaison*pi/180) - y*sin(inclinaison*pi/180) + x0 , x*sin(inclinaison*pi/180) + y*cos(inclinaison*pi/180) + y0 #matrice de rotation cachée
+        xy_ind[i] = x*cos(incl*pi/180) - y*sin(incl*pi/180) + x0 , x*sin(incl*pi/180) + y*cos(incl*pi/180) + y0
     for i in range (1,len(xy_ind)) :
         nv_ligne(xy_ind[i-1][0],xy_ind[i-1][1],xy_ind[i][0],xy_ind[i][1],tx,moncanva1,style)
     nv_point(x0,y0,tx,moncanva1)
@@ -492,11 +437,10 @@ def affichage_forme_unique (individu,dx,nom_page="None") : #-> None
     milieu_y = (val_extrm[2] + val_extrm[3]) / 2
     tx = 1
     for i in range (1,len(xy_ind)) :
-        nv_ligne((xy_ind[i-1][0]-milieu_x)*coef,(xy_ind[i-1][1]-milieu_y)*coef,(xy_ind[i][0]-milieu_x)*coef,(xy_ind[i][1]-milieu_y)*coef,tx,moncanva2)
+        nv_ligne((xy_ind[i-1][0]-milieu_x)*coef,(xy_ind[i-1][1]-milieu_y)*coef,(xy_ind[i][0]-milieu_x)
+                 *coef,(xy_ind[i][1]-milieu_y)*coef,tx,moncanva2)
         nv_point((xy_ind[i-1][0]-milieu_x)*coef,(xy_ind[i-1][1]-milieu_y)*coef,tx,moncanva2)
         tx -= 1/(len(xy_ind)-1)
-    #moncanva2.pack(expand=True)
-    #fenêtre2.mainloop()
 
 def fitness_affichage_z_or_i (individu,dx,nom_foret : str) : #-> None
     #nb_segment = len(individu)
@@ -532,7 +476,7 @@ def fitness_affichage_z_or_i (individu,dx,nom_foret : str) : #-> None
                 #print(x0,orientation)
                 afficher_individu (individu,dx,x0,y0,orientation,tx,style="fine")
                 tx += 1/(nb_x0*nb_y0*nb_orientations)
-                #print(tx,len(x0_évalués),len(y0_évalués),len(orientations_évaluées))
+
 
 def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
     global Lforet
@@ -547,7 +491,7 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
         nv_ligne(Lforet/2,-moncanva1.winfo_height()//2,Lforet/2,moncanva1.winfo_height()//2,2,moncanva1,style="frontiere")
         nb_x0 = 1
         nb_y0 = 1
-        nb_orientations = 50
+        nb_orientations = 20
     elif nom_foret == "rectangle" :
         nv_ligne(Lforet/2,-Hforet/2,Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
         nv_ligne(-Lforet/2,-Hforet/2,-Lforet/2,Hforet/2,2,moncanva1,style="frontiere")
@@ -601,38 +545,41 @@ def fitness_affichage_z_or_i_2 (individu,dx,nom_foret : str) : #-> None
 def fitness_lourde (individu,dx) : #pas d'optimisation computationnelle, juste pour le test final
     #nb_segment = len(individu)
     global nom_foret
-    nb_x0 = 100
-    nb_orientations = 100
+    nb_x0 = 10
+    nb_orientations = 20
+    if nom_foret == "rectangle" :
+        nb_y0 = 50
+    else :
+        nb_y0 = 1
     xy_ind = angles_a_forme(individu,dx)
     tx_moyen = 0
     score = 1
-    nb_erreurs = nb_x0 * nb_orientations
+    nb_erreurs = nb_x0 * nb_orientations * nb_y0
     nb_segments_inutiles_total = 0
-    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti ([nb_x0,1,nb_orientations])
+    x0_évalués, y0_évalués, orientations_évaluées = positions_évaluées_équiréparti ([nb_x0,nb_y0,nb_orientations])
     for x0 in x0_évalués :
         for y0 in y0_évalués :
             for orientation in orientations_évaluées :
                 dedans = []
                 tx = 0
-                #for x,y in angles_a_forme(individu,dx) :
                 for (x,y) in xy_ind :
-                    dedans.append(appartenance_foret(nom_foret,(x0,y0,orientation),x,y))
+                    dedans.append(appartenance_foret(nom_foret,x0,y0,orientation,x,y))
                 for val in dedans : #useless
                     tx += int(val)/len(dedans)
                 for i in range(len(dedans)) :
                     if dedans[i] == False :
-                        nb_segments_inutiles_total += len(dedans) - i #on compte les segments après la première sortie de la foret
+                        nb_segments_inutiles_total += len(dedans) - i
                         nb_erreurs -= 1
                         break
                 #if tx < 1 :
                 #    score -= 1/(nb_x0 * nb_orientations)
 
                 tx_moyen += tx/(nb_x0 * len(y0_évalués) * nb_orientations)
-    if (nb_x0 * nb_orientations - nb_erreurs) > 0 : #dénombre les segments inutiles moyens parmi les essais réussis
+    if (nb_x0 * nb_orientations - nb_erreurs) > 0 : #segments inutiles moyens parmi les essais réussis
         nb_segments_inutiles_moyen = nb_segments_inutiles_total / (nb_x0 * nb_orientations - nb_erreurs)
     else :
         nb_segments_inutiles_moyen = 0
-    score = nb_erreurs / (nb_x0 * nb_orientations)
+    score = nb_erreurs / (nb_x0 * nb_orientations*nb_y0)
     return score*100, tx_moyen*100, nb_erreurs, nb_x0 * nb_orientations, nb_segments_inutiles_moyen
 
 
@@ -643,32 +590,29 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
     global sigma_mutation
     global dx
     global génération_actuelle
-    global données_csv
-    global vecteurs_départ
     génération_actuelle = 0
     sigma_ref = sigma_mutation
-    meilleur_score , score_moyen , val_sigma, nb_vect_testés = [] , [] , [], []
+    meilleur_score , score_moyen , val_sigma = [] , [] , []
     if nom_foret == "Zalgaller" :
         para_evaluation = [6,1,100]
     elif nom_foret == "Isbell" :
         para_evaluation = [1,1,300]
     elif nom_foret == "rectangle" :
-        para_evaluation = [10,10,10] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
+        para_evaluation = [3,3,50] #nb_x0,nb_y0,nb_orientations /!\ à modif si on change de foret
     else :
         raise Exception("nom_foret doit être Zalgaller ou Isbell ou rectangle")
     #nb_x0 = para_evaluation[0]
     population = création_pop(nb_individu,nb_segment)
     for génération in range (nb_génération) :
-        if génération % 100 == 0 :
+        if génération % 50 == 0 :
             sigma_mutation *= 0.8
         génération_actuelle = génération
-        pop_triée, coût_trié = couples_à_listes(évaluation_et_tri_dyna(population,dx,para_evaluation,nom_foret))
-        #listes affichées
+        pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
         meilleur_score.append(coût_trié[0])
         score_moyen.append(sum(coût_trié)/len(pop_triée))
         val_sigma.append(sigma_mutation/sigma_ref*20)
-        nb_vect_testés.append(len(vecteurs_départ))
-        if génération in [0,10,50,100,500] :
+        population = séléction (pop_triée,coût_trié,sigma_mutation)
+        if génération in [0,50,250] :
             affichage_forme_unique (pop_triée[0],dx,nom_page="solution : génération "+ str(génération))
         """if coût_trié[0] <= 0 :
             nb_x0 += 10
@@ -678,32 +622,30 @@ def éxecution (nb_individu,nb_génération,nb_segment,nom_foret) : #-> meilleur
             score,_,_,_,_ = fitness_lourde(pop_triée[0],dx)
             if score <= 0.05 :
                 break"""
-        population = séléction (pop_triée,coût_trié,sigma_mutation)
     pop_triée, coût_trié = couples_à_listes(évaluation_et_tri(population,dx,para_evaluation,nom_foret))
     fitness_affichage_z_or_i_2(pop_triée[0],dx,nom_foret)
     affichage_forme_unique (pop_triée[0],dx)
     print("meilleur coût_trié[0] =", coût_trié[0])
     score, tx_moyen, nb_erreurs, nb_total, nb_segments_inutiles_moyen = fitness_lourde (pop_triée[0],dx)
-    print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :", nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
+    print("score :", score, "%, tx_moyen :", tx_moyen, "%, nb_erreurs :", nb_erreurs, ", nb_total :",
+           nb_total, ", nb_segments_inutiles_moyen :", nb_segments_inutiles_moyen)
     print("meilleur_individu", pop_triée[0])
-    return meilleur_score , score_moyen , val_sigma, nb_vect_testés
+    return meilleur_score , score_moyen , val_sigma
 
-meilleur_score , score_moyen , val_sigma, nb_vect_testés= éxecution (nb_individu,nb_génération,nb_segment,nom_foret)
+meilleur_score , score_moyen , val_sigma = éxecution (nb_individu,nb_génération,nb_segment,nom_foret)
 #fitness_affichage_z_or_i ([0,0,0,0],dx,"Isbell")
+
+#indiv = [0, 38.65915484868573, 144.3933496156547, -24.772945381715417, -253.8680812812645, -21.40937108991477, -37.314860376012035, -412.0528685556913, 37.40813284630995, -375.09821681035856, -20.616134651786336, 175.1870057392491, -140.6568666574284, -177.93303246328227, -9.631127855703012, 9.024971717728548]
+#print(fitness(indiv,dx,[3,3,50],"rectangle"))
+#fitness_affichage_z_or_i_2(indiv,dx,"rectangle")
 
 import matplotlib.pyplot as plt
 plt.plot(meilleur_score,c="#3a5a40") #[i+1 for i in range(nb_génération)]
 plt.plot(score_moyen,c="#a3b18a") #brouillon d'echelle log : [log(i+1) for i in range(500)]
-plt.plot (val_sigma)
-plt.plot(nb_vect_testés)
 #plt.plot(score_moyen)
 plt.xscale("log")
 #plt.yscale("log")
 plt.show()
 
-#------------------------------#
-
-
-#------------------------------#
 moncanva1.pack(expand=True)
 fenêtre1.mainloop()

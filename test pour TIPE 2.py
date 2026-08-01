@@ -93,7 +93,7 @@ individu_ex_3 = [180,0,0,0,0]
 individu_ex_4 = [0,30,-30,0,0]
 
 
-def coeff_similarité_dist_vect (ind1,ind2) :
+def coeff_similarité_dist_angle (ind1,ind2) :
     assert len(ind1) == len(ind2)
     dist = sqrt(sum([(ind1[i]-ind2[i])**2 for i in range (1,len(ind1))])) #le premier angle est arbitraire
     return dist
@@ -109,18 +109,18 @@ def coeff_similarité_dist_pt_par_pt (ind1,ind2) :
     dist_max = l0*(n-2)*(n-1)
     a = 2
     return dist, dist_max, ind1_pts, ind2_pts, [sqrt((ind2_pts[i][0] - ind1_pts[i][0])**2 + (ind2_pts[i][1] - ind1_pts[i][1])**2) for i in range (2,n)] #(exp(a*dist/dist_max)-1)/(exp(a)-1)
-"""
-print (coeff_similarité_dist_vect (individu_ex_1,individu_ex_2),
-      coeff_similarité_dist_vect (individu_ex_1,individu_ex_3),
-      coeff_similarité_dist_vect (individu_ex_1,individu_ex_4)
+
+print (coeff_similarité_dist_angle (individu_ex_1,individu_ex_2),
+      coeff_similarité_dist_angle (individu_ex_1,individu_ex_3),
+      coeff_similarité_dist_angle (individu_ex_1,individu_ex_4)
       )
 print (coeff_similarité_dist_pt_par_pt (individu_ex_2_bis,individu_ex_2),
-      #coeff_similarité_dist_pt_par_pt (individu_ex_1,individu_ex_3),
-      #coeff_similarité_dist_pt_par_pt (individu_ex_1,individu_ex_4),
+      coeff_similarité_dist_pt_par_pt (individu_ex_1,individu_ex_3),
+      coeff_similarité_dist_pt_par_pt (individu_ex_1,individu_ex_4),
       )
-"""
+
 #--------------------------------------------------#
-Lforet = 10 #largeur de la foret pour Zalgaller, Isbell et rectangle
+"""Lforet = 10 #largeur de la foret pour Zalgaller, Isbell et rectangle
 Hforet = 10 #hauteur de la foret pour rectangle
 
 def appartenance_rectangle (x0,y0,orientation,x,y) :
@@ -154,3 +154,4 @@ def angles_a_forme2 (Langles,dx) : #petite optimisation mais confusion : le 1er 
 
 Lex1 = [0,0,90,0,-90] #liste des angles successifs décrivant un individu
 print(angles_a_forme(Lex1,2))
+"""
